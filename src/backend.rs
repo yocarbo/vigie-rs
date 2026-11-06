@@ -123,7 +123,8 @@ pub mod qobject {
         #[cxx_name = "chromeUserAgent"]
         fn chrome_user_agent(self: &Backend, engine: &QString, major: i32) -> QString;
 
-        /// `{"version", "commit", "channel", "canInstall"}` : de quoi afficher et choisir la mise à jour.
+        /// `{"version", "commit", "channel", "canInstall"}` : de quoi afficher et choisir la mise à jour ;
+        /// `canInstall` : « Installer » marche (release dans un dossier modifiable, ou dépôt des sources).
         #[qinvokable]
         #[cxx_name = "versionInfo"]
         fn version_info(self: &Backend) -> QString;
@@ -137,6 +138,12 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "installUpdate"]
         fn install_update(self: Pin<&mut Backend>);
+
+        /// Compilé depuis les sources : `./vigie-rs update` dans un terminal ; message d'erreur, vide si
+        /// le terminal est lancé.
+        #[qinvokable]
+        #[cxx_name = "updateFromSource"]
+        fn update_from_source(self: &Backend) -> QString;
 
         /// Relance Vigie juste après sa fermeture ; message d'erreur, vide si tout va bien.
         #[qinvokable]
@@ -449,7 +456,7 @@ impl qobject::Backend {
     }
 
     pub fn version_info(&self) -> QString {
-        let can_install = update::prefix().is_some_and(|p| update::can_install(&p));
+        let can_install = update::source_script().is_some() || update::prefix().is_some_and(|p| update::can_install(&p));
         q(json!({
             "version": update::VERSION,
             "commit": update::COMMIT.get(..7).unwrap_or(update::COMMIT),
@@ -495,6 +502,10 @@ impl qobject::Backend {
             let error = result.err().unwrap_or_default();
             let _ = qt.queue(move |b| b.update_installed(q(error)));
         });
+    }
+
+    pub fn update_from_source(&self) -> QString {
+        q(update::update_from_source().err().unwrap_or_default())
     }
 
     pub fn restart(&self) -> QString {
