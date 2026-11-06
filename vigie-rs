@@ -3,7 +3,7 @@
 #   ./vigie-rs             le lance nativement sur l'hôte ;
 #   ./vigie-rs install     l'installe : binaire dans $PREFIX/bin, recipes dans $PREFIX/share/vigie-rs,
 #                          entrée de menu et icône dans $PREFIX/share/applications et share/icons ;
-#   ./vigie-rs update      récupère la dernière version (git pull), la recompile, et la réinstalle
+#   ./vigie-rs update      récupère la dernière version (main), la recompile, et la réinstalle
 #                          si Vigie est installé dans $PREFIX ;
 #   ./vigie-rs uninstall   le désinstalle (la configuration et les connexions restent).
 # PREFIX vaut /usr par défaut ; sudo n'est demandé que si le préfixe n'est pas modifiable.
@@ -67,6 +67,8 @@ case "${1:-}" in
     install_files
     ;;
   update)
+    # main, comparé par l'onglet Version : la branche en cours a pu être fusionnée puis supprimée.
+    git switch -q main
     git pull --ff-only
     build
     if [ -x "$prefix/bin/vigie-rs" ]; then
