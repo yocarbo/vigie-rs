@@ -61,6 +61,7 @@ node -e "const pages = {
   '/code': '<script>Notification.requestPermission().then(() => new Notification(\"Messages\", { body: \"Votre code de vérification : 482913\" }))</script>',
   '/retour': '<script>console.log(\"UA retour \" + navigator.userAgent); setTimeout(() => location.href = \"/apres\", 1000)</script>',
   '/apres': '<script>console.log(\"UA apres \" + navigator.userAgent)</script>',
+  '/schema': '<script>console.log(\"SCHEMA \" + matchMedia(\"(prefers-color-scheme: dark)\").matches + \" NOTIF \" + Notification.permission)</script>',
 };
 require('http').createServer((q, r) => {
   if (q.url === '/connexion') {
@@ -346,3 +347,14 @@ grep -q '^calendar.google.com/u/0/ connecté' "$glog" || fail 'connexion Google 
 grep -q '^messages.google.com/web connecté' "$glog" || fail 'connexion Google : Messages pas revenu au service une fois Gmail connecté'
 [ "$(grep -c 'signin?calendar' "$glog")" -eq 1 ] || fail 'connexion Google : page de connexion rechargée en boucle'
 echo 'ok : connexion Google (user-agent du moteur, session partagée connectée partout, puis Chrome)'
+
+# Thème sombre : les pages voient prefers-color-scheme: dark (Slack, WhatsApp… suivent le leur).
+# Notifications déjà accordées au chargement, sans demande (pas de bandeau de Slack).
+printf '{ "theme": "dark", "services": [ { "id": "schema", "name": "Schéma", "url": "http://localhost:8123/schema" } ] }' >example/.sombre.json
+start example/.sombre.json
+wait_log 'console : SCHEMA' || fail 'thème sombre : page non chargée'
+stop
+rm -f example/.sombre.json
+grep -q 'console : SCHEMA true' "$log" || fail 'thème sombre : la page ne voit pas prefers-color-scheme: dark'
+grep -q 'console : SCHEMA .* NOTIF granted' "$log" || fail 'notifications non accordées d’avance'
+echo 'ok : thème sombre transmis aux pages (prefers-color-scheme), notifications accordées d’avance'

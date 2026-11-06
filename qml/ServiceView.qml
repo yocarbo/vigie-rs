@@ -232,6 +232,9 @@ Item {
                 onNavigationRequested: request => {
                     if (!request.isMainFrame)
                         return
+                    // Notifications accordées d'avance, comme à la demande : Slack… n'affichent plus
+                    // leur bandeau « autorisez les notifications » à chaque lancement.
+                    web.profile.queryPermission(request.url, WebEnginePermission.PermissionType.Notifications).grant()
                     if (view.app.googlePage(view.svc, request.url, web))
                         request.reject()
                 }
