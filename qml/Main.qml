@@ -353,10 +353,65 @@ ApplicationWindow {
     }
     // User-agent du service, par clé de session.
     property var profileAgents: ({})
-    // User-agent (du service, sinon global, sinon Chrome sans « QtWebEngine/… ») et correcteur.
+    // Google refuse la connexion (« navigateur non sécurisé ») à QtWebEngine déguisé, en Chrome à
+    // jour comme en Firefox (que contredisent les Sec-CH-UA de Chromium) ; il l'accepte sous son
+    // propre user-agent, « QtWebEngine/… » compris (Eclipse, issue 69, novembre 2026). Sur tout
+    // *.google.com (et accounts.youtube.com, étape de la connexion), pour que Google ne voie
+    // qu'une identité. User-agent changé après les signaux de Chromium (il l'exige) et hors
+    // chargement (il rechargerait la page précédente).
+    property var googleSessions: ({})
+    function isGoogle(url) {
+        return /^https:\/\/(([a-z0-9-]+\.)*google\.com|accounts\.youtube\.com)(\/|$)/.test(String(url))
+    }
+    function isSignIn(url) {
+        return /^https:\/\/accounts\.google\.com\//.test(String(url))
+    }
+    // Navigation vers Google : vrai si `web` doit l'annuler ; relancée avec le user-agent du moteur.
+    function googlePage(svc, url, web) {
+        const key = sessionKey(svc)
+        if (!isGoogle(url) || googleSessions[key] || !profiles[key])
+            return false
+        googleSessions[key] = true
+        const target = String(url)
+        Qt.callLater(() => {
+            configureProfile(key)
+            web.url = target
+        })
+        return true
+    }
+    // Vues sur la page de connexion de Google. Quand l'une la quitte, ou que sa fenêtre se ferme
+    // (Android Messages se connecte dans une fenêtre à part), les autres services de la session
+    // restés sur la page de connexion, chargée avant, retournent à leur service, connectés.
+    property var signIns: []
+    // Page chargée (`url` vide : fenêtre fermée) : fin de connexion ; user-agent habituel hors de Google.
+    function googlePageLoaded(svc, web, url) {
+        const key = sessionKey(svc)
+        const i = signIns.indexOf(web)
+        if (url && isSignIn(url)) {
+            if (i < 0)
+                signIns.push(web)
+        } else if (i >= 0) {
+            signIns.splice(i, 1)
+            for (const sid in views)
+                if (sessionKey(views[sid].svc) === key)
+                    views[sid].afterSignIn(web)
+        }
+        if (!url || !googleSessions[key] || isGoogle(url))
+            return
+        Qt.callLater(() => {
+            if (!googleSessions[key] || web.loading)
+                return
+            googleSessions[key] = false
+            configureProfile(key)
+        })
+    }
+    // User-agent (celui du moteur sur Google ; sinon celui du service, le global, ou Chrome sans
+    // « QtWebEngine/… ») et correcteur.
     function configureProfile(key) {
         const p = profiles[key]
-        p.httpUserAgent = profileAgents[key] || settings.user_agent || defaultUserAgent
+        p.httpUserAgent = googleSessions[key]
+            ? engineUserAgent
+            : profileAgents[key] || settings.user_agent || defaultUserAgent
         p.spellCheckEnabled = !!settings.spellcheck
         p.spellCheckLanguages = settings.spellcheck_language === "auto" ? ["fr-FR", "en-US"] : [settings.spellcheck_language]
     }

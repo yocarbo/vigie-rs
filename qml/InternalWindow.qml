@@ -24,11 +24,22 @@ ApplicationWindow {
         onWindowCloseRequested: win.close()
         onPermissionRequested: permission => win.app.askPermission(win.service, permission)
         onNewWindowRequested: request => win.app.newWindow(win.service, win.profile, request)
+        onNavigationRequested: request => {
+            if (request.isMainFrame && win.app.googlePage(win.service, request.url, web))
+                request.reject()
+        }
+        onLoadingChanged: info => {
+            if (info.status === WebEngineLoadingInfo.LoadSucceededStatus)
+                win.app.googlePageLoaded(win.service, web, info.url)
+        }
         onFullScreenRequested: request => {
             request.accept()
             win.visibility = request.toggleOn ? Window.FullScreen : Window.Windowed
         }
     }
 
-    onClosing: destroy()
+    onClosing: {
+        app.googlePageLoaded(service, web, "")
+        destroy()
+    }
 }

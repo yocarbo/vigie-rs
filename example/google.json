@@ -1,0 +1,6 @@
+[
+  { "id": "google", "name": "Google", "url": "http://localhost:8123/connexion" },
+  { "id": "gmail", "name": "Gmail", "url": "https://mail.google.com", "session": "google-partage" },
+  { "id": "messages", "name": "Messages", "url": "https://messages.google.com/web", "session": "google-partage" },
+  { "id": "agenda", "name": "Agenda", "url": "https://calendar.google.com/u/0/", "session": "google-partage" }
+]
