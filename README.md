@@ -126,6 +126,7 @@ Google refuses to sign in QtWebEngine in disguise ("This browser or app may not 
 ### Dark mode
 
 When Vigie is dark (Dark theme, or System with a dark desktop):
+- pages see `prefers-color-scheme: dark`, so sites with their own dark theme use it, as in a browser. Chromium reads this at startup: after changing the theme, restart Vigie for the pages to follow;
 - if the service's recipe has a dark theme (`handleDarkMode`, failing that `darkmode.css`), it is applied;
 - otherwise, with the service's "Dark mode" set to "Always", Chromium's automatic dark mode is used.
 

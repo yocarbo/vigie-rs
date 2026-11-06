@@ -12,6 +12,8 @@ pub mod ffi {
         fn vigie_prepare();
         /// L'application (nom affiché).
         fn vigie_application() -> UniquePtr<QApplication>;
+        /// Thème du système sombre (après l'application).
+        fn vigie_system_dark() -> bool;
         /// Icône des fenêtres : les PNG de `dir`, sinon celle du thème.
         fn vigie_window_icon(dir: &QString);
         /// Boucle d'événements ; renvoie le code de sortie.

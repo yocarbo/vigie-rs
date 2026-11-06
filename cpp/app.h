@@ -3,6 +3,7 @@
 
 #include <QtCore/QString>
 #include <QtGui/QIcon>
+#include <QtGui/QStyleHints>
 #include <QtWidgets/QApplication>
 #include <QtWebEngineQuick/qtwebenginequickglobal.h>
 
@@ -24,6 +25,11 @@ inline std::unique_ptr<QApplication> vigie_application()
     QApplication::setApplicationName(QStringLiteral("vigie-rs"));
     QApplication::setApplicationDisplayName(QStringLiteral("Vigie"));
     return app;
+}
+
+inline bool vigie_system_dark()
+{
+    return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
 }
 
 // Icône de toutes les fenêtres (KWin la lit aussi sous Wayland) : les PNG de Vigie rendus dans `dir`,
