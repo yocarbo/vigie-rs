@@ -142,6 +142,9 @@ Item {
         case "clear":
             web.profile.clearHttpCache()
             break
+        case "avatar":
+            app.setAvatar(sid, m.url)
+            break
         case "forceDark":
             recipeForcesDark = m.on
             break

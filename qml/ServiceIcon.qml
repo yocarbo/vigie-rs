@@ -12,6 +12,7 @@ Item {
     required property int direct
     required property int indirect
     required property string favicon
+    required property string avatar
     readonly property var svc: JSON.parse(json)
     readonly property string logo: app.info(svc).icon || ""
     readonly property bool selected: sid === app.current
@@ -49,12 +50,14 @@ Item {
         Drag.hotSpot.x: width / 2
         Drag.hotSpot.y: height / 2
 
-        // Case fixe : logo de la recipe, sinon favicon du site, sinon initiales.
+        // Case fixe : icône donnée par la recipe (workspace Slack), sinon son logo, sinon favicon du
+        // site, sinon initiales.
         ServiceLogo {
             id: box
             size: cell.app.iconSize
             name: cell.svc.name
-            source: cell.logo || cell.favicon
+            source: cell.avatar || cell.logo || cell.favicon
+            rounded: !!cell.avatar
             anchors.horizontalCenter: parent.horizontalCenter
             y: 10
             opacity: cell.disabled ? 0.35 : 1

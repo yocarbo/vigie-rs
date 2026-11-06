@@ -215,18 +215,20 @@ Dialog {
                         delegate: ItemDelegate {
                             required property string json
                             required property string favicon
+                            required property string avatar
                             readonly property var svc: JSON.parse(json)
                             width: ListView.view.width
                             onClicked: dlg.edit(svc, false)
                             contentItem: RowLayout {
                                 spacing: 12
                                 opacity: svc.disabled ? 0.5 : 1
-                                // Comme dans la barre latérale : logo, sinon favicon, sinon initiales.
+                                // Comme dans la barre latérale : icône de la recipe, logo, favicon, initiales.
                                 ServiceLogo {
                                     Layout.preferredWidth: 32
                                     Layout.preferredHeight: 32
                                     name: svc.name
-                                    source: dlg.app.info(svc).icon || favicon
+                                    source: avatar || dlg.app.info(svc).icon || favicon
+                                    rounded: !!avatar
                                 }
                                 ColumnLayout {
                                     spacing: 0

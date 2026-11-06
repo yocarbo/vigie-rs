@@ -97,9 +97,12 @@ const Vigie = {
   handleDarkMode(fn) {
     __darkHandler = fn;
   },
+  // Icône du service dans la barre (celle du workspace Slack…), à la place du logo de la recipe.
+  setAvatarImage(url) {
+    if (url) __post({ type: 'avatar', url: String(url) });
+  },
   // ponytail: no-ops, à brancher quand une recipe utilisée en a besoin.
   setDialogTitle() {},
-  setAvatarImage() {},
   onNotify() {},
   toggleToTalk() {},
 };
