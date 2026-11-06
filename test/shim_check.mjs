@@ -59,6 +59,10 @@ assert.deepEqual(r.posted, [{ type: 'badge', direct: 3, indirect: 0 }]);
 r.listeners['__vigie-page']({ detail: JSON.stringify({ type: 'badge', direct: 5, indirect: 1 }) });
 assert.deepEqual(r.posted.at(-1), { type: 'badge', direct: 5, indirect: 1 });
 
+// Icône du workspace (recipe Slack) envoyée à l'app.
+vm.runInContext('Vigie.setAvatarImage("https://example.org/team.png")', r.ctx);
+assert.deepEqual(r.posted.at(-1), { type: 'avatar', url: 'https://example.org/team.png' });
+
 // Autre domaine (page de connexion…) : la recipe ne s'exécute pas.
 const other = run(files, false, 'accounts.google.com');
 assert.deepEqual(other.styles, [], 'pas de recipe hors du domaine du service');

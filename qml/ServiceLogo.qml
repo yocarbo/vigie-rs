@@ -1,6 +1,7 @@
 // Logo d'un service dans une case fixe : logo de la recipe, sinon favicon du site, sinon initiales.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 
 Item {
     id: logo
@@ -8,6 +9,8 @@ Item {
     // Logo de la recipe ou favicon (vide : initiales).
     property string source
     property int size: 32
+    // Image carrée (icône du workspace Slack…) : coins arrondis.
+    property bool rounded: false
 
     width: size
     height: size
@@ -24,6 +27,20 @@ Item {
         smooth: true
         mipmap: true
         visible: status === Image.Ready
+        layer.enabled: logo.rounded
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: corners
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1
+        }
+    }
+    Rectangle {
+        id: corners
+        anchors.fill: parent
+        radius: width * 0.22
+        visible: false
+        layer.enabled: true
     }
     Rectangle {
         anchors.fill: parent

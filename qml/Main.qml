@@ -112,7 +112,7 @@ ApplicationWindow {
         return infos[svc.id]
     }
     function entry(svc) {
-        return { sid: svc.id, json: JSON.stringify(svc), direct: 0, indirect: 0, favicon: "" }
+        return { sid: svc.id, json: JSON.stringify(svc), direct: 0, indirect: 0, favicon: "", avatar: "" }
     }
     // Le badge s'affiche, sauf pour un service aux notifications coupées si l'option le demande.
     function showsBadge(svc) {
@@ -449,6 +449,12 @@ ApplicationWindow {
         const i = indexOf(sid)
         if (i >= 0)
             services.setProperty(i, "favicon", String(url))
+    }
+    // Icône donnée par la recipe (workspace Slack…) : prioritaire sur son logo.
+    function setAvatar(sid, url) {
+        const i = indexOf(sid)
+        if (i >= 0)
+            services.setProperty(i, "avatar", String(url))
     }
     // Total du tray, du titre et de D-Bus, sans les services « hors total » ou sans badge.
     function refreshTotals() {

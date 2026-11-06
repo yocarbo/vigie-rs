@@ -16,7 +16,7 @@ RUN apt-get update \
       qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
       qml6-module-qtquick-window qml6-module-qtquick-dialogs qml6-module-qtquick-templates \
       qml6-module-qtqml-workerscript qml6-module-qtwebengine qml6-module-qtwebchannel \
-      qml6-module-qt-labs-platform qml6-module-qtcore \
+      qml6-module-qtquick-effects qml6-module-qt-labs-platform qml6-module-qtcore \
       qt6-webengine-dev-tools hunspell-fr hunspell-en-us \
       libgl1-mesa-dri libegl1 fonts-dejavu-core \
       nodejs xvfb xauth dbus scrot xdotool \

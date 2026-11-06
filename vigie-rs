@@ -16,7 +16,7 @@ app=io.github.vigie_rs
 desktop=$prefix/share/applications/$app.desktop
 icon=$prefix/share/icons/hicolor/scalable/apps/$app.svg
 QT_PACKAGES="libqt6webenginequick6 qml6-module-qtwebengine qml6-module-qtwebchannel qml6-module-qtquick-controls \
-qml6-module-qtquick-layouts qml6-module-qtquick-dialogs qml6-module-qt-labs-platform"
+qml6-module-qtquick-layouts qml6-module-qtquick-dialogs qml6-module-qtquick-effects qml6-module-qt-labs-platform"
 as_admin=
 [ -w "$prefix" ] || as_admin=sudo
 

@@ -15,7 +15,7 @@ It is inspired by [Ferdium](https://github.com/ferdium/ferdium-app), and its rec
 ```bash
 sudo apt install libqt6webenginequick6 qml6-module-qtwebengine qml6-module-qtwebchannel \
   qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-dialogs \
-  qml6-module-qt-labs-platform          # once; already there on most KDE Plasma installs
+  qml6-module-qtquick-effects qml6-module-qt-labs-platform   # once; already there on most KDE Plasma installs
 docker build -t vigie-rs-dev .          # once: the build environment
 ./vigie-rs                              # your services: ~/.config/vigie-rs/settings.json
 VIGIE_CONFIG=example/services.json ./vigie-rs   # two local test services (changes are saved there)
@@ -128,6 +128,8 @@ Google refuses to sign in QtWebEngine in disguise ("This browser or app may not 
 When Vigie is dark (Dark theme, or System with a dark desktop):
 - if the service's recipe has a dark theme (`handleDarkMode`, failing that `darkmode.css`), it is applied;
 - otherwise, with the service's "Dark mode" set to "Always", Chromium's automatic dark mode is used.
+
+Slack's recipe has no `darkmode.css`: Ferdium's, written for Slack's former interface, repainted part of the new one in grey over Slack's own dark theme (Preferences → Themes), which Slack keeps per device.
 
 The Light and Dark themes change Vigie's own colours only where Qt lets an app override the desktop's colour scheme; the pages follow them in every case.
 
