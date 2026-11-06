@@ -291,6 +291,10 @@ ApplicationWindow {
     // une fois par semaine ; `manual` (bouton des paramètres) : toujours, et dit aussi « à jour ».
     property string updateStatus: ""
     property bool updateManual: false
+    // Pour l'onglet Version : mise à jour trouvée ({ kind, version, url }), et déjà installée (release)
+    // ou lancée dans un terminal (sources), donc Vigie à redémarrer.
+    property var updateFound: null
+    property bool updateDone: false
     function checkUpdates(manual) {
         if (!manual && (!settings.update_check || Backend.env("VIGIE_OFFLINE") !== ""
             || Date.now() - (Date.parse(settings.update_checked || "") || 0) < 7 * 86400000))
@@ -307,25 +311,39 @@ ApplicationWindow {
             return
         }
         // Mise à jour trouvée : la date n'est pas notée, pour la signaler encore au prochain lancement.
+        updateFound = kind === "none" ? null : { kind: kind, version: version, url: url }
         if (kind === "none") {
             settings = Object.assign({}, settings, { update_checked: new Date().toISOString() })
             save()
             updateStatus = t("Vigie est à jour.")
             if (updateManual)
                 toast.show(updateStatus)
-        } else if (kind === "source") {
-            updateStatus = t("Une nouvelle version de Vigie est sur GitHub : lance ./vigie-rs update.")
-            toast.show(updateStatus, t("Voir les changements"), () => Qt.openUrlExternally(url))
-        } else if (JSON.parse(Backend.versionInfo()).canInstall) {
-            updateStatus = t("Vigie %1 est disponible.").arg(version)
-            toast.show(updateStatus, t("Installer"), () => {
-                updateStatus = t("Installation de Vigie %1…").arg(version)
-                Backend.installUpdate()
-            })
-        } else {
-            updateStatus = t("Vigie %1 est disponible.").arg(version)
-            toast.show(updateStatus, t("Voir"), () => Qt.openUrlExternally(url))
+            return
         }
+        const canInstall = JSON.parse(Backend.versionInfo()).canInstall
+        updateStatus = kind === "source"
+            ? (canInstall ? t("Une nouvelle version de Vigie est sur GitHub.")
+                : t("Une nouvelle version de Vigie est sur GitHub : lance ./vigie-rs update."))
+            : t("Vigie %1 est disponible.").arg(version)
+        if (canInstall)
+            toast.show(updateStatus, t("Installer"), installUpdate)
+        else
+            toast.show(updateStatus, t("Voir les changements"), () => Qt.openUrlExternally(url))
+    }
+    function installUpdate() {
+        if (updateFound.kind !== "source") {
+            updateStatus = t("Installation de Vigie %1…").arg(updateFound.version)
+            Backend.installUpdate()
+            return
+        }
+        const failed = Backend.updateFromSource()
+        if (failed) {
+            updateStatus = t("Échec de la mise à jour : %1").arg(failed)
+            toast.show(updateStatus)
+            return
+        }
+        updateDone = true
+        updateStatus = t("Mise à jour lancée dans un terminal : redémarre Vigie une fois qu'elle est finie.")
     }
     function updateInstalled(error) {
         if (error) {
@@ -333,14 +351,16 @@ ApplicationWindow {
             toast.show(updateStatus)
             return
         }
+        updateDone = true
         updateStatus = t("Mise à jour installée : redémarre Vigie pour l'utiliser.")
-        toast.show(updateStatus, t("Redémarrer"), () => {
-            const failed = Backend.restart()
-            if (failed)
-                toast.show(failed)
-            else
-                quit()
-        })
+        toast.show(updateStatus, t("Redémarrer"), restartVigie)
+    }
+    function restartVigie() {
+        const failed = Backend.restart()
+        if (failed)
+            toast.show(failed)
+        else
+            quit()
     }
     Timer {
         interval: 6 * 3600000

@@ -42,7 +42,7 @@ From the sources:
 ./vigie-rs update      # git pull, rebuild, and reinstall if Vigie is installed in $PREFIX
 ```
 
-A Vigie built by `./vigie-rs` knows its commit: once a week, it asks GitHub whether `main` has moved on, and says so.
+A Vigie built by `./vigie-rs` knows its commit and its checkout: once a week, it asks GitHub whether `main` has moved on. If so, **Install** opens a terminal (`x-terminal-emulator`, Konsole, GNOME Terminal or xterm) that runs `./vigie-rs update`, where you follow the build and type the sudo password; then **Restart** relaunches Vigie.
 
 From a release: each `vX.Y.Z` tag makes the GitHub Action (`.github/workflows/release.yml`) run the tests, build Vigie in the container and publish `vigie-rs-X.Y.Z-linux-x86_64.tar.gz` with its SHA-256. Extracted into a folder you can write to, Vigie updates itself:
 
@@ -50,9 +50,9 @@ From a release: each `vX.Y.Z` tag makes the GitHub Action (`.github/workflows/re
 tar xzf vigie-rs-X.Y.Z-linux-x86_64.tar.gz --strip-components=1 -C ~/.local   # ~/.local/bin/vigie-rs
 ```
 
-Once a week, it looks at the latest release. When there is a newer one, it offers to install it: it downloads the archive, checks its SHA-256, replaces its files and restarts. The checksum catches a broken download, not a forged release, since it comes from the same place as the archive. The binary uses the system's Qt, so it needs the packages above, with Qt 6.10 or later (Ubuntu 26.04). Installed in `/usr` by `./vigie-rs install`, Vigie cannot replace its own files: it only says that a new version is out.
+Once a week, it looks at the latest release. When there is a newer one, it offers to install it: it downloads the archive, checks its SHA-256, replaces its files and restarts. The checksum catches a broken download, not a forged release, since it comes from the same place as the archive. The binary uses the system's Qt, so it needs the packages above, with Qt 6.10 or later (Ubuntu 26.04). A release extracted into a folder Vigie cannot write to (`/usr`) only says that a new version is out.
 
-Both checks can be turned off, and run by hand, in Settings → General → Updates. To publish a release, set the new version in `Cargo.toml`, commit and push, then:
+Both checks can be turned off, and run by hand, in Settings → Version. To publish a release, set the new version in `Cargo.toml`, commit and push, then:
 
 ```bash
 git tag v0.3.0 && git push origin v0.3.0   # the tag must match the version in Cargo.toml
@@ -86,6 +86,7 @@ Every change is saved to the configuration file and applied without restarting, 
   - reload the services after the system resumes (detected when the clock jumps by more than the idle delay, 10 minutes by default);
   - hibernation: services with hibernation turned on are unloaded after 1, 5, 10 or 30 minutes without being shown, and can stay unloaded at startup; while unloaded, a service gets no messages;
   - configuration export and import.
+- **Version**: the current version and how it was built (release, or source with its commit), **Check for a new version**, then **Install** and **Restart** when there is one (see [Updating](#updating)), and the weekly check.
 - **Notifications**: Do not disturb, hide the content of notifications, badges of muted services, two-factor codes (a 4 to 8-digit code in a notification that contains one of the keywords is copied to the clipboard).
 - **Appearance**: theme, icon size, names under icons, disabled services in the sidebar, navigation bar.
 - **Privacy**: password lock (at startup, on demand, or after N minutes away from the window; only an Argon2 hash is stored), WebRTC IP policy.

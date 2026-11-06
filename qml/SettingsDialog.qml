@@ -1,4 +1,4 @@
-// Paramètres : services, réglages (général, notifications, apparence, confidentialité, avancé),
+// Paramètres : services, réglages (général, notifications, apparence, confidentialité, avancé), version,
 // catalogue des recipes, édition d'un service.
 import QtQuick
 import QtQuick.Controls
@@ -178,6 +178,9 @@ Dialog {
                     TabButton {
                         text: dlg.t("Avancé")
                     }
+                    TabButton {
+                        text: dlg.t("Version")
+                    }
                 }
                 CloseButton {}
             }
@@ -336,35 +339,6 @@ Dialog {
                             Button {
                                 text: dlg.t("Importer une configuration…")
                                 onClicked: importDialog.open()
-                            }
-                        }
-                    }
-                    Section {
-                        id: updates
-                        readonly property var info: JSON.parse(Backend.versionInfo())
-                        title: dlg.t("Mises à jour")
-                        Hint {
-                            text: updates.info.channel === "release"
-                                ? dlg.t("Version %1, installée depuis une release GitHub.").arg(updates.info.version)
-                                    + (updates.info.canInstall ? ""
-                                        : " " + dlg.t("Vigie ne peut pas remplacer ses fichiers : il signale les nouvelles versions sans les installer."))
-                                : updates.info.channel === "source"
-                                ? dlg.t("Version %1, compilée depuis les sources (commit %2) : ./vigie-rs update installe les nouveautés de main.").arg(updates.info.version).arg(updates.info.commit)
-                                : dlg.t("Version %1, compilée à la main.").arg(updates.info.version)
-                        }
-                        Toggle {
-                            key: "update_check"
-                            text: dlg.t("Rechercher les mises à jour chaque semaine (une requête à GitHub)")
-                        }
-                        RowLayout {
-                            Button {
-                                text: dlg.t("Rechercher maintenant")
-                                onClicked: dlg.app.checkUpdates(true)
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                wrapMode: Text.WordWrap
-                                text: dlg.app.updateStatus
                             }
                         }
                     }
@@ -568,6 +542,66 @@ Dialog {
                         }
                         Hint {
                             text: dlg.t("La traduction ouvre le texte sélectionné dans le navigateur, sur le service choisi.")
+                        }
+                    }
+                }
+
+                // Version : la version en cours, la recherche d'une nouvelle et son installation.
+                Tab {
+                    Section {
+                        id: updates
+                        readonly property var info: JSON.parse(Backend.versionInfo())
+                        readonly property var found: dlg.app.updateFound
+                        title: dlg.t("Version")
+                        Label {
+                            text: "Vigie " + updates.info.version
+                            font.pixelSize: 20
+                            font.bold: true
+                        }
+                        Hint {
+                            text: updates.info.channel === "release"
+                                ? dlg.t("Installée depuis une release GitHub.")
+                                    + (updates.info.canInstall ? ""
+                                        : " " + dlg.t("Vigie ne peut pas remplacer ses fichiers : il signale les nouvelles versions sans les installer."))
+                                : updates.info.channel === "source"
+                                ? (updates.info.canInstall
+                                    ? dlg.t("Compilée depuis les sources (commit %1). « Installer » lance ./vigie-rs update dans un terminal : récupération de main, compilation, installation.").arg(updates.info.commit)
+                                    : dlg.t("Compilée depuis les sources (commit %1) : ./vigie-rs update installe les nouveautés de main.").arg(updates.info.commit))
+                                : dlg.t("Compilée à la main.")
+                        }
+                        RowLayout {
+                            Button {
+                                text: dlg.t("Rechercher une nouvelle version")
+                                onClicked: dlg.app.checkUpdates(true)
+                            }
+                            Button {
+                                visible: !!updates.found && updates.info.canInstall && !dlg.app.updateDone
+                                highlighted: true
+                                text: dlg.t("Installer")
+                                onClicked: dlg.app.installUpdate()
+                            }
+                            Button {
+                                visible: dlg.app.updateDone
+                                highlighted: true
+                                text: dlg.t("Redémarrer")
+                                onClicked: dlg.app.restartVigie()
+                            }
+                            Button {
+                                visible: !!updates.found?.url
+                                flat: true
+                                text: dlg.t("Voir les changements")
+                                onClicked: Qt.openUrlExternally(updates.found.url)
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            visible: text !== ""
+                            text: dlg.app.updateStatus
+                        }
+                        Toggle {
+                            key: "update_check"
+                            text: dlg.t("Rechercher les mises à jour chaque semaine (une requête à GitHub)")
                         }
                     }
                 }

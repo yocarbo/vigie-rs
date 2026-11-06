@@ -1,8 +1,8 @@
 //! Mises à jour de Vigie, selon la façon dont il a été compilé :
 //! - « release » (archive publiée par la GitHub Action) : la dernière release est téléchargée,
 //!   vérifiée (SHA-256) et installée à la place des fichiers actuels ;
-//! - « source » (compilé par ./vigie-rs) : Vigie signale seulement que `main` a avancé sur GitHub,
-//!   et `./vigie-rs update` fait le reste.
+//! - « source » (compilé par ./vigie-rs) : Vigie signale que `main` a avancé sur GitHub, et lance
+//!   `./vigie-rs update` dans un terminal.
 use std::{
     fs,
     io::Read,
@@ -209,6 +209,38 @@ fn set_executable(path: &Path) -> std::io::Result<()> {
 #[cfg(not(unix))]
 fn set_executable(_: &Path) -> std::io::Result<()> {
     Ok(())
+}
+
+/// Compilé par ./vigie-rs : son script, dans le dépôt des sources (encore présent) d'où il vient.
+pub fn source_script() -> Option<PathBuf> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let script = dir.join("vigie-rs");
+    (CHANNEL == "source" && script.is_file() && dir.join(".git").exists()).then_some(script)
+}
+
+/// `./vigie-rs update` dans un terminal, où l'on suit la compilation et tape le mot de passe de sudo ;
+/// pour l'installation d'où Vigie a été lancé (PREFIX), sauf s'il tourne depuis le dépôt lui-même.
+pub fn update_from_source() -> Result<(), String> {
+    let script = source_script().ok_or("dépôt des sources introuvable")?;
+    let repo = script.parent().unwrap_or(Path::new("."));
+    let prefix = prefix().filter(|p| p.join("bin/vigie-rs").is_file() && p.canonicalize().ok() != repo.canonicalize().ok());
+    let command = "[ -z \"$1\" ] || export PREFIX=\"$1\"; \"$0\" update; echo; printf 'Entrée pour fermer… '; read _";
+    let args = [
+        "sh".to_owned(),
+        "-c".to_owned(),
+        command.to_owned(),
+        script.to_string_lossy().into_owned(),
+        prefix.map(|p| p.to_string_lossy().into_owned()).unwrap_or_default(),
+    ];
+    // ponytail: terminaux courants de Linux ; ajouter le sien ici s'il manque.
+    for (terminal, flag) in [("x-terminal-emulator", "-e"), ("konsole", "-e"), ("gnome-terminal", "--"), ("xterm", "-e")] {
+        match std::process::Command::new(terminal).arg(flag).args(&args).spawn() {
+            Ok(_) => return Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    Err("aucun terminal trouvé (x-terminal-emulator, konsole, gnome-terminal, xterm)".to_owned())
 }
 
 /// Relance Vigie (le nouveau binaire) dès que ce processus est terminé et son nom D-Bus libéré :
