@@ -1,0 +1,43 @@
+# Publie une release à chaque tag vX.Y.Z (même version que Cargo.toml) : tests, compilation dans
+# l'image vigie-rs-dev (Ubuntu 26.04, Qt 6.10), archive et empreinte SHA-256 (outils/package.sh).
+# Les Vigie installés depuis une release la détectent et se mettent à jour (src/update.rs).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Le tag correspond à la version de Cargo.toml
+        run: |
+          v=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          [ "${GITHUB_REF_NAME#v}" = "$v" ] || { echo "Tag $GITHUB_REF_NAME, mais Cargo.toml est en $v"; exit 1; }
+          echo "VERSION=$v" >>"$GITHUB_ENV"
+
+      - name: Image de compilation
+        run: docker build -t vigie-rs-dev .
+
+      - name: Tests
+        run: docker run --rm -v "$PWD:/app" vigie-rs-dev sh test/run.sh
+
+      - name: Compilation
+        run: >
+          docker run --rm -v "$PWD:$PWD" -w "$PWD"
+          -e VIGIE_CHANNEL=release -e VIGIE_COMMIT="$GITHUB_SHA"
+          vigie-rs-dev sh outils/release.sh "$(id -u)" "$(id -g)"
+
+      - name: Archive
+        run: sh outils/package.sh "$VERSION"
+
+      - name: Publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Vigie $VERSION" --generate-notes

@@ -1,0 +1,10 @@
+/target
+/bin
+/captures
+/example/.*.json
+/mes-services.json*
+/.vscode
+essai-qt
+sauvegarde-gtk.tar.gz
+/dictionaries
+/dist

@@ -1,0 +1,7 @@
+{
+  "services": [
+    { "id": "pose", "name": "Pose", "url": "http://127.0.0.1:8123/#set", "recipe": "recette-cookie", "session": "test" },
+    { "id": "partage", "name": "Partage", "url": "http://127.0.0.1:8123/", "recipe": "recette-cookie", "session": "test" },
+    { "id": "isole", "name": "Isole", "url": "http://127.0.0.1:8123/", "recipe": "recette-cookie" }
+  ]
+}

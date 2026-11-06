@@ -1,0 +1,10 @@
+{
+  "theme": "light",
+  "services": [
+    { "id": "whatsapp", "name": "WhatsApp", "url": "data:text/html,<h1>WhatsApp</h1>", "recipe": "../recipes/whatsapp" },
+    { "id": "slack", "name": "Slack", "url": "data:text/html,<h1>Slack</h1>", "recipe": "../recipes/slack", "session": "demo" },
+    { "id": "gmail", "name": "Gmail", "url": "data:text/html,<h1>Gmail</h1>", "recipe": "../recipes/gmail", "session": "demo", "mute_notifications": true },
+    { "id": "test", "name": "Test local", "url": "data:text/html,<p class=unread>1</p><p class=unread>2</p><p class=unread>3</p>", "recipe": "recette-test" },
+    { "id": "wiki", "name": "Mon wiki", "url": "data:text/html,<h1>Site personnalisé</h1>" }
+  ]
+}

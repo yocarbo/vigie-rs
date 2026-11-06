@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Vigie avec non-lus indirects seulement : l'œil passe au bleu. -->
+  <path d="M5 32C14 17 25 11 32 11s18 6 27 21c-9 15-20 21-27 21S14 47 5 32z" fill="none" stroke="#62a0ea" stroke-width="5" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="10" fill="#62a0ea"/>
+  <circle cx="35.5" cy="28.5" r="3.2" fill="#2e3436"/>
+</svg>

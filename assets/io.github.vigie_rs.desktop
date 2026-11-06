@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Vigie
+Comment=All your messaging apps in one window
+Comment[fr]=Toutes tes messageries dans une seule fenêtre
+Exec=vigie-rs
+Icon=io.github.vigie_rs
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+Keywords=WhatsApp;Slack;Gmail;messenger;
+StartupNotify=true
