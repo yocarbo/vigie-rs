@@ -6,7 +6,8 @@ log=target/e2e.log
 app=
 srv=
 monitor=
-trap 'kill $app $srv $monitor 2>/dev/null || true' EXIT
+google=
+trap 'kill $app $srv $monitor $google 2>/dev/null || true' EXIT
 fail() { echo "ÉCHEC : $1"; cat "$log"; exit 1; }
 start() { # $1 : configuration (relative au projet)
   VIGIE_CONFIG=$1 target/debug/vigie-rs >"$log" 2>&1 &
@@ -58,8 +59,14 @@ node -e "const pages = {
   '/micro': '<button style=\"position:fixed;inset:0;width:100%;height:100%\" onclick=\"navigator.mediaDevices.getUserMedia({ audio: true }).then(() => console.log(\'MICRO ok\'), e => console.log(\'MICRO \' + e.name))\">micro</button>',
   '/telecharger': '<a href=\"/doc.txt\" download style=\"position:fixed;inset:0;display:block\">télécharger</a>',
   '/code': '<script>Notification.requestPermission().then(() => new Notification(\"Messages\", { body: \"Votre code de vérification : 482913\" }))</script>',
+  '/retour': '<script>console.log(\"UA retour \" + navigator.userAgent); setTimeout(() => location.href = \"/apres\", 1000)</script>',
+  '/apres': '<script>console.log(\"UA apres \" + navigator.userAgent)</script>',
 };
 require('http').createServer((q, r) => {
+  if (q.url === '/connexion') {
+    r.writeHead(302, { location: 'https://accounts.google.com/signin?retour' });
+    return r.end();
+  }
   if (q.url === '/doc.txt') {
     r.setHeader('content-type', 'text/plain');
     return r.end('contenu');
@@ -295,3 +302,47 @@ xdotool search --name 'Hors total' >/dev/null || fail 'Vigie ne rouvre pas le de
 stop
 rm -f example/.dernier.json
 echo 'ok : réouverture sur le dernier service affiché'
+
+# Connexion Google (servie ici, certificat autosigné) : user-agent du moteur (« QtWebEngine/ ») sur
+# tout *.google.com, puis celui de Chrome à nouveau une fois revenu au service. Trois services d'une
+# même session, déconnectés, redirigés vers la page de connexion : Gmail s'y connecte (cookie SID),
+# Messages et Agenda retournent alors à leur service, connectés. Chaque requête est notée.
+openssl req -x509 -newkey rsa:2048 -nodes -keyout target/google.key -out target/google.crt -days 1 \
+  -subj /CN=accounts.google.com 2>/dev/null
+echo '127.0.0.1 accounts.google.com mail.google.com messages.google.com calendar.google.com' >>/etc/hosts
+glog=target/google.log
+: >"$glog"
+node -e "const fs = require('fs');
+require('https').createServer({ key: fs.readFileSync('target/google.key'), cert: fs.readFileSync('target/google.crt') }, (q, r) => {
+  const host = q.headers.host, signedIn = /SID=1/.test(q.headers.cookie || '');
+  fs.appendFileSync('$glog', host + q.url + (signedIn ? ' connecté' : '') + ' ' + q.headers['user-agent'] + '\n');
+  r.setHeader('content-type', 'text/html; charset=utf-8');
+  if (host === 'accounts.google.com')
+    return r.end('<script>setTimeout(() => {' +
+      'if (location.search === \"?retour\") location.href = \"http://localhost:8123/retour\";' +
+      'if (location.search === \"?mail\") { document.cookie = \"SID=1; domain=.google.com; path=/; secure\"; location.href = \"https://mail.google.com/mail/\" }' +
+      '}, location.search === \"?mail\" ? 3000 : 1000)</script>');
+  if (signedIn)
+    return r.end('connecté');
+  r.writeHead(302, { location: 'https://accounts.google.com/signin?' + host.split('.')[0] });
+  r.end();
+}).listen(443)" &
+google=$!
+export VIGIE_CONSOLE=1 QTWEBENGINE_CHROMIUM_FLAGS=--ignore-certificate-errors
+start example/google.json
+wait_log 'console : UA apres' || fail 'connexion Google : pas de retour au service'
+for _ in $(seq 20); do
+  grep -q '^calendar.google.com/u/0/ connecté' "$glog" && grep -q '^messages.google.com/web connecté' "$glog" && break
+  sleep 0.5
+done
+sleep 1
+stop
+cat "$glog" >>"$log"
+! grep -v 'QtWebEngine/' "$glog" || fail 'connexion Google : requête envoyée à Google sous un autre user-agent que celui du moteur'
+grep 'console : UA apres' "$log" | grep 'Chrome/' | grep -qv 'QtWebEngine/' || fail 'connexion Google : user-agent de Chrome non rétabli'
+[ "$(grep -c 'signin?retour' "$glog")" -eq 1 ] || fail 'connexion Google : page rechargée en boucle'
+grep -q '^mail.google.com/mail/ connecté' "$glog" || fail 'connexion Google : Gmail non connecté'
+grep -q '^calendar.google.com/u/0/ connecté' "$glog" || fail 'connexion Google : Agenda pas revenu au service une fois Gmail connecté'
+grep -q '^messages.google.com/web connecté' "$glog" || fail 'connexion Google : Messages pas revenu au service une fois Gmail connecté'
+[ "$(grep -c 'signin?calendar' "$glog")" -eq 1 ] || fail 'connexion Google : page de connexion rechargée en boucle'
+echo 'ok : connexion Google (user-agent du moteur, session partagée connectée partout, puis Chrome)'

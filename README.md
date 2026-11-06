@@ -116,9 +116,11 @@ The recipe does not run in these windows: it is restricted to the service's doma
 
 ### Sessions: isolated by default, shareable
 
-Each service has its own cookies and storage (`~/.local/share/vigie-rs/QtWebEngine/<id>`). Give several services the same session name, for example `google` for Gmail, Calendar and Chat, and they share a single sign-in (`~/.local/share/vigie-rs/QtWebEngine/session-google`). Changing this setting requires signing in again.
+Each service has its own cookies and storage (`~/.local/share/vigie-rs/QtWebEngine/<id>`). Give several services the same session name, for example `google` for Gmail, Calendar and Chat, and they share a single sign-in (`~/.local/share/vigie-rs/QtWebEngine/session-google`): once you sign in to Google in one of them (or in the window Android Messages opens for it), the others still on Google's sign-in page return to their service, signed in. Changing this setting requires signing in again.
 
 Sites see an ordinary, up-to-date Chrome: the "QtWebEngine" mention is removed from the user agent, and its Chrome version is the current stable one. Vigie asks [Google's public version API](https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions) at most once a week (Settings → Advanced, can be turned off), and never presents a version older than its engine's. A service's own user agent, or the default one set in the settings, takes precedence.
+
+Google refuses to sign in QtWebEngine in disguise ("This browser or app may not be secure"): as an up-to-date Chrome, even with matching `Sec-CH-UA` brands, and as Firefox, which Chromium's `Sec-CH-UA` headers contradict. It accepts the engine's own user agent, "QtWebEngine/…" included (reported by the Eclipse browser, November 2026). On every `*.google.com` page and on `accounts.youtube.com`, Vigie presents that one, so Google sees a single identity, and the up-to-date Chrome again once a page elsewhere has loaded. Google also refuses sign-ins after many attempts in a row; waiting a while helps. A session already refused keeps Google's cookies from those visits: give its services a new session name (or delete its folder) to start from scratch.
 
 ### Dark mode
 
@@ -224,7 +226,8 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - downloads: into the chosen folder, into the default one, and through the "save as" dialog when asking is on;
   - keep in background: closing hides the window without quitting, and a second launch shows it again;
   - Do not disturb is saved, the content of notifications can be hidden, a disabled service is not loaded, a two-factor code from a notification is copied, and the password lock opens only with the right password;
-  - last service: the service shown when Vigie closes is the one shown when it starts again.
+  - last service: the service shown when Vigie closes is the one shown when it starts again;
+  - Google sign-in (`*.google.com` served locally): the engine's user agent on every request, then the Chrome one again; with three services sharing a session, signing in to Gmail brings the other two back to their service, signed in.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
 

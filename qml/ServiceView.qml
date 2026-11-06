@@ -55,6 +55,11 @@ Item {
             web.lifecycleState = WebEngineView.LifecycleState.Discarded
         }
     }
+    // Connexion à Google faite ailleurs dans la session (`done`) : quitte la page de connexion.
+    function afterSignIn(done) {
+        if (web !== done && app.isSignIn(web.url))
+            web.url = svc.url
+    }
     function reloadIfAwake() {
         if (web.lifecycleState === WebEngineView.LifecycleState.Active && !pendingUrl)
             web.reload()
@@ -221,6 +226,16 @@ Item {
                 onIconChanged: view.app.setFavicon(view.sid, icon)
                 onPermissionRequested: permission => view.app.askPermission(view.svc, permission)
                 onNewWindowRequested: request => view.app.newWindow(view.svc, web.profile, request)
+                onNavigationRequested: request => {
+                    if (!request.isMainFrame)
+                        return
+                    if (view.app.googlePage(view.svc, request.url, web))
+                        request.reject()
+                }
+                onLoadingChanged: info => {
+                    if (info.status === WebEngineLoadingInfo.LoadSucceededStatus)
+                        view.app.googlePageLoaded(view.svc, web, info.url)
+                }
                 onFullScreenRequested: request => request.accept()
                 onContextMenuRequested: request => {
                     request.accepted = true
