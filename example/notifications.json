@@ -1,0 +1,6 @@
+{
+  "services": [
+    { "id": "notif-oui", "name": "Notif oui", "url": "http://127.0.0.1:8123/notif" },
+    { "id": "notif-non", "name": "Notif non", "url": "http://127.0.0.1:8123/notif", "mute_notifications": true }
+  ]
+}

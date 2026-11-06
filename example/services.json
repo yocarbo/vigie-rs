@@ -1,0 +1,15 @@
+[
+  {
+    "id": "test",
+    "name": "Test local",
+    "url": "data:text/html,<p class=unread>1</p><p class=unread>2</p><p class=unread>3</p>",
+    "recipe": "recette-test"
+  },
+  {
+    "id": "hors-total",
+    "name": "Hors total",
+    "url": "data:text/html,<p class=unread>1</p><p class=unread>2</p><p class=unread>3</p>",
+    "recipe": "recette-test",
+    "exclude_from_total": true
+  }
+]

@@ -1,0 +1,81 @@
+#!/bin/sh
+# Compile vigie-rs (release) dans l'image vigie-rs-dev, puis :
+#   ./vigie-rs             le lance nativement sur l'hôte ;
+#   ./vigie-rs install     l'installe : binaire dans $PREFIX/bin, recipes dans $PREFIX/share/vigie-rs,
+#                          entrée de menu et icône dans $PREFIX/share/applications et share/icons ;
+#   ./vigie-rs update      récupère la dernière version (git pull), la recompile, et la réinstalle
+#                          si Vigie est installé dans $PREFIX ;
+#   ./vigie-rs uninstall   le désinstalle (la configuration et les connexions restent).
+# PREFIX vaut /usr par défaut ; sudo n'est demandé que si le préfixe n'est pas modifiable.
+# Services : ~/.config/vigie-rs/settings.json (autre fichier : VIGIE_CONFIG=chemin ./vigie-rs).
+# Prérequis hôte (Debian, Ubuntu) : Qt 6 WebEngine et ses modules QML, voir QT_PACKAGES.
+set -eu
+cd "$(dirname "$(readlink -f "$0")")"
+prefix=${PREFIX:-/usr}
+app=io.github.vigie_rs
+desktop=$prefix/share/applications/$app.desktop
+icon=$prefix/share/icons/hicolor/scalable/apps/$app.svg
+QT_PACKAGES="libqt6webenginequick6 qml6-module-qtwebengine qml6-module-qtwebchannel qml6-module-qtquick-controls \
+qml6-module-qtquick-layouts qml6-module-qtquick-dialogs qml6-module-qt-labs-platform"
+as_admin=
+[ -w "$prefix" ] || as_admin=sudo
+
+uninstall() {
+  $as_admin rm -f "$prefix/bin/vigie-rs" "$desktop" "$icon"
+  $as_admin rm -rf "$prefix/share/vigie-rs"
+  $as_admin gtk-update-icon-cache -q -t "$prefix/share/icons/hicolor" 2>/dev/null || true
+  echo "vigie-rs désinstallé de $prefix"
+}
+
+# Compilation dans le conteneur ; le commit est gravé dans le binaire, pour que Vigie signale les
+# nouvelles versions de main sur GitHub.
+build() {
+  p=$PWD
+  mkdir -p bin # créé ici pour t'appartenir, pas à root
+  docker run --rm -v "$p:$p" -w "$p" \
+    -v vigie-rs-cargo:/usr/local/cargo/registry -v "vigie-rs-target:$p/target" \
+    -e VIGIE_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)" -e VIGIE_CHANNEL=source \
+    vigie-rs-dev sh outils/release.sh "$(id -u)" "$(id -g)"
+  missing=$(ldd bin/vigie-rs | grep 'not found' || true)
+  if [ -n "$missing" ]; then
+    printf 'Bibliothèques manquantes sur l’hôte :\n%s\n→ sudo apt install %s\n' "$missing" "$QT_PACKAGES"
+    exit 1
+  fi
+}
+
+install_files() {
+  $as_admin install -D -m 755 bin/vigie-rs "$prefix/bin/vigie-rs"
+  # Le catalogue n'est pas dans le binaire : le binaire le cherche dans ../share/vigie-rs/recipes.
+  $as_admin rm -rf "$prefix/share/vigie-rs"
+  $as_admin mkdir -p "$prefix/share/vigie-rs"
+  $as_admin cp -r recipes "$prefix/share/vigie-rs/"
+  # Dictionnaires du correcteur, cherchés dans ../share/vigie-rs/dictionaries.
+  if [ -d dictionaries ]; then $as_admin cp -r dictionaries "$prefix/share/vigie-rs/"; fi
+  # Entrée du menu des applications et icône (le bureau les associe à la fenêtre par l'id de l'app).
+  $as_admin install -D -m 644 "assets/$app.desktop" "$desktop"
+  $as_admin install -D -m 644 "assets/$app.svg" "$icon"
+  $as_admin gtk-update-icon-cache -q -t "$prefix/share/icons/hicolor" 2>/dev/null || true
+  echo "vigie-rs installé : $prefix/bin/vigie-rs (recipes dans $prefix/share/vigie-rs)"
+}
+
+case "${1:-}" in
+  uninstall)
+    uninstall
+    ;;
+  install)
+    build
+    install_files
+    ;;
+  update)
+    git pull --ff-only
+    build
+    if [ -x "$prefix/bin/vigie-rs" ]; then
+      install_files
+    fi
+    echo "Vigie est à jour ($(git log -1 --format='%h, %cd' --date=short)). Relance-le pour utiliser la nouvelle version."
+    ;;
+  *)
+    build
+    exec bin/vigie-rs
+    ;;
+esac
