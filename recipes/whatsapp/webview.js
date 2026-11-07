@@ -70,9 +70,8 @@ module.exports = Vigie => {
     getActiveDialogTitle();
   };
 
-  window.addEventListener('beforeunload', async () => {
-    Vigie.releaseServiceWorkers();
-  });
+  // Pas de `Vigie.releaseServiceWorkers()` au déchargement, contrairement à Ferdium : dans Qt
+  // WebEngine, la désinscription aboutit à chaque rechargement, et WhatsApp se déconnecte.
 
   Vigie.handleDarkMode(isEnabled => {
     if (isEnabled) {
