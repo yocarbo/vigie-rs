@@ -52,11 +52,13 @@ tar xzf vigie-rs-X.Y.Z-linux-x86_64.tar.gz --strip-components=1 -C ~/.local   # 
 
 Once a week, it looks at the latest release. When there is a newer one, it offers to install it: it downloads the archive, checks its SHA-256, replaces its files and restarts. The checksum catches a broken download, not a forged release, since it comes from the same place as the archive. The binary uses the system's Qt, so it needs the packages above, with Qt 6.10 or later (Ubuntu 26.04). A release extracted into a folder Vigie cannot write to (`/usr`) only says that a new version is out.
 
-Both checks can be turned off, and run by hand, in Settings → Version. To publish a release, set the new version in `Cargo.toml`, commit and push, then:
+Both checks can be turned off, and run by hand, in Settings → Version. To publish a release, set the new version in `Cargo.toml` and merge it into `main`, then push the tag from `main`:
 
 ```bash
 git tag v0.3.0 && git push origin v0.3.0   # the tag must match the version in Cargo.toml
 ```
+
+The Action creates the release itself. Don't create it on GitHub's Releases page: with release immutability on, a release published there without its archive can't take one later, its publication step fails, and its tag can't be reused.
 
 ## Interface
 
