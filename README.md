@@ -132,6 +132,8 @@ When Vigie is dark (Dark theme, or System with a dark desktop):
 
 Slack's recipe has no `darkmode.css`: Ferdium's, written for Slack's former interface, repainted part of the new one in grey over Slack's own dark theme (Preferences → Themes), which Slack keeps per device.
 
+WhatsApp's recipe no longer unregisters the page's service workers when it unloads, as Ferdium's does: in Qt WebEngine the unregistration completes on every reload, and WhatsApp then signs out.
+
 The Light and Dark themes change Vigie's own colours only where Qt lets an app override the desktop's colour scheme; the pages follow them in every case.
 
 ### Backup
