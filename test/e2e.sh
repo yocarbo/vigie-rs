@@ -62,11 +62,16 @@ node -e "const pages = {
   '/retour': '<script>console.log(\"UA retour \" + navigator.userAgent); setTimeout(() => location.href = \"/apres\", 1000)</script>',
   '/apres': '<script>console.log(\"UA apres \" + navigator.userAgent)</script>',
   '/schema': '<script>console.log(\"SCHEMA \" + matchMedia(\"(prefers-color-scheme: dark)\").matches + \" NOTIF \" + Notification.permission)</script>',
+  '/recharge': '<script>localStorage.n = +(localStorage.n || 0) + 1; navigator.serviceWorker.getRegistrations().then(r => { console.log(\"CHARGE \" + localStorage.n + \" SW \" + r.length); return navigator.serviceWorker.register(\"/sw.js\") })</script>',
 };
 require('http').createServer((q, r) => {
   if (q.url === '/connexion') {
     r.writeHead(302, { location: 'https://accounts.google.com/signin?retour' });
     return r.end();
+  }
+  if (q.url === '/sw.js') {
+    r.setHeader('content-type', 'text/javascript');
+    return r.end('');
   }
   if (q.url === '/doc.txt') {
     r.setHeader('content-type', 'text/plain');
@@ -358,3 +363,28 @@ rm -f example/.sombre.json
 grep -q 'console : SCHEMA true' "$log" || fail 'thème sombre : la page ne voit pas prefers-color-scheme: dark'
 grep -q 'console : SCHEMA .* NOTIF granted' "$log" || fail 'notifications non accordées d’avance'
 echo 'ok : thème sombre transmis aux pages (prefers-color-scheme), notifications accordées d’avance'
+
+# Rechargement : Ctrl+R recharge le service affiché, sans désinscrire son service worker (recipe
+# WhatsApp : il se déconnectait) ; un service qui a son propre raccourci ignore Ctrl+R.
+cat >example/.recharge.json <<'JSON'
+{"services": [
+  {"id": "recharge", "name": "Recharge", "url": "http://localhost:8123/recharge", "recipe": "whatsapp"},
+  {"id": "touche", "name": "Touche", "url": "http://localhost:8123/recharge", "reload_shortcut": "Ctrl+Shift+R"}
+]}
+JSON
+start example/.recharge.json
+wait_log '[Recharge] console : CHARGE 1 SW 0' || fail 'rechargement : page non chargée'
+xdotool mousemove 600 400 click 1 key ctrl+r
+wait_log '[Recharge] console : CHARGE 2' || fail 'rechargement : Ctrl+R sans effet'
+grep -qF '[Recharge] console : CHARGE 2 SW 1' "$log" || fail 'rechargement : service worker désinscrit'
+xdotool mousemove 32 87 click 1
+wait_log '[Touche] console : CHARGE 1' || fail 'raccourci du service : page non chargée'
+sleep 1
+xdotool mousemove 600 400 click 1 key ctrl+r
+sleep 3
+! grep -qF '[Touche] console : CHARGE 2' "$log" || fail 'raccourci du service : Ctrl+R l’a rechargé'
+xdotool key ctrl+shift+r
+wait_log '[Touche] console : CHARGE 2' || fail 'raccourci du service : Ctrl+Shift+R sans effet'
+stop
+rm -f example/.recharge.json
+echo 'ok : rechargement (Ctrl+R, service worker gardé, raccourci propre au service)'

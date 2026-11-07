@@ -47,6 +47,7 @@ Page {
         set("new_windows", ["", "browser", "internal"][newWindows.currentIndex])
         set("session", session.text.trim())
         set("user_agent", userAgent.text.trim())
+        set("reload_shortcut", reloadShortcut.text.trim())
         if (darkMode.currentIndex === 0)
             delete svc.dark_mode
         else
@@ -198,6 +199,15 @@ Page {
                 id: userAgent
                 Layout.fillWidth: true
                 text: editor.service.user_agent || ""
+                placeholderText: editor.t("par défaut : celui des paramètres")
+            }
+            Label {
+                text: editor.t("Raccourci pour recharger")
+            }
+            TextField {
+                id: reloadShortcut
+                Layout.fillWidth: true
+                text: editor.service.reload_shortcut || ""
                 placeholderText: editor.t("par défaut : celui des paramètres")
             }
         }
