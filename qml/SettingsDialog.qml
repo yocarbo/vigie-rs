@@ -303,6 +303,15 @@ Dialog {
                         }
                     }
                     Section {
+                        title: dlg.t("Raccourci")
+                        // ponytail: raccourci saisi en texte (Ctrl+Shift+R…), sans capture des touches.
+                        Field {
+                            key: "reload_shortcut"
+                            text: dlg.t("Recharger le service affiché (F5 aussi ; chaque service peut avoir le sien)")
+                            placeholder: "Ctrl+R"
+                        }
+                    }
+                    Section {
                         title: dlg.t("Veille et reprise")
                         Toggle {
                             key: "reload_after_resume"

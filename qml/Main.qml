@@ -31,7 +31,7 @@ ApplicationWindow {
         update_check: true, update_checked: "",
         spellcheck: false, spellcheck_language: "auto",
         translator: false, translator_engine: "google", translator_language: "",
-        last_service: "",
+        last_service: "", reload_shortcut: "Ctrl+R",
     })
     property var settings: Object.assign({}, defaults)
     // Configuration illisible au démarrage : rien n'est enregistré, pour ne pas l'écraser.
@@ -741,7 +741,7 @@ ApplicationWindow {
                     enabled: services.count > 0
                     onClicked: root.reloadCurrent()
                     ToolTip.visible: hovered
-                    ToolTip.text: root.t("Recharger le service (F5)")
+                    ToolTip.text: root.t("Recharger le service (%1)").arg(root.reloadShortcut)
                 }
                 ToolButton {
                     Layout.alignment: Qt.AlignHCenter
@@ -891,9 +891,13 @@ ApplicationWindow {
         app: root
     }
 
-    // F5 (ou Ctrl+R) : recharge le service affiché.
+    // Recharge le service affiché : son raccourci, sinon celui des paramètres (Ctrl+R), et F5.
+    // La page ne reçoit plus ces touches : un service qui se sert de Ctrl+R en prend un autre.
+    readonly property string reloadShortcut: (serviceById(current) || {}).reload_shortcut
+        || settings.reload_shortcut || defaults.reload_shortcut
     Shortcut {
-        sequences: [StandardKey.Refresh]
+        // Une même séquence deux fois rendrait le raccourci ambigu (jamais déclenché).
+        sequences: root.reloadShortcut === "F5" ? ["F5"] : [root.reloadShortcut, "F5"]
         context: Qt.ApplicationShortcut
         onActivated: root.reloadCurrent()
     }

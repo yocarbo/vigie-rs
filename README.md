@@ -64,7 +64,7 @@ git tag v0.3.0 && git push origin v0.3.0   # the tag must match the version in C
   - each service's icon, in a fixed box (small, normal or large): its recipe's logo (trimmed of its blank margins), otherwise the site's favicon, otherwise its initials; optionally its name underneath;
   - a red badge for direct unread messages, a dot for indirect ones;
   - 🔕 or 🔇 when the service's notifications or sound are muted; disabled services greyed out (or hidden);
-  - three buttons at the bottom: reload the current service (⟳, or F5), add a service (+), settings (⚙).
+  - three buttons at the bottom: reload the current service (⟳, F5 or Ctrl+R), add a service (+), settings (⚙).
 - **Reordering**: hold the left button on an icon and drop it onto another one; it takes that place, and the order is saved.
 - **Right-click on an icon**: toggle Notifications, Sound, "Count in total (tray)" and Hibernation; open in a separate window, reload, enable or disable, edit.
 - **Count in total**: when unchecked, the service keeps its badge in the sidebar, but its unread messages are no longer added to the tray (icon and tooltip), the window title or the D-Bus counters.
@@ -74,15 +74,17 @@ git tag v0.3.0 && git push origin v0.3.0   # the tag must match the version in C
 - **Right-click in a page**: spelling suggestions, cut, copy, paste, open or copy a link, copy or save an image, translate the selection, back, forward, reload.
 - **Navigation bar** (never, always, or per service): back, forward, service home, address, open in the browser.
 - **Ctrl+W** closes the window like its close button.
+- **Ctrl+R** (and F5) reloads the current service. The page no longer gets that key: a service that uses Ctrl+R itself can take another shortcut in its editor, and Settings → General changes the default one. A shortcut is written like `Ctrl+Shift+R` or `Alt+R`.
 
 Every change is saved to the configuration file and applied without restarting, except GPU acceleration and the WebRTC IP policy, read when Vigie starts.
 
 ### Settings
 
-- **Services**: the list. A click opens the editor (name, URL, enabled, notifications, sound, total, hibernation, navigation bar, new windows, shared session, dark mode, user agent), where the service can also be deleted. **Add** (`+`): catalogue of the 440 services with search, or "Custom website" for any URL.
+- **Services**: the list. A click opens the editor (name, URL, enabled, notifications, sound, total, hibernation, navigation bar, new windows, shared session, dark mode, user agent, reload shortcut), where the service can also be deleted. **Add** (`+`): catalogue of the 440 services with search, or "Custom website" for any URL.
 - **General**:
   - launch at login (Linux: `~/.config/autostart`), start minimised, keep running in the background when the window is closed, confirm before quitting (on by default), always show the tray icon;
   - interface language: system, French or English;
+  - the shortcut that reloads the current service (Ctrl+R by default);
   - reload the services after the system resumes (detected when the clock jumps by more than the idle delay, 10 minutes by default);
   - hibernation: services with hibernation turned on are unloaded after 1, 5, 10 or 30 minutes without being shown, and can stay unloaded at startup; while unloaded, a service gets no messages;
   - configuration export and import.
@@ -179,8 +181,8 @@ Recipes run in an isolated JavaScript world (Qt WebEngine's `ApplicationWorld`):
 
 - `id`: letters, digits, `-`, `_`; it is also the name of the data folder. A duplicate id is ignored.
 - `recipe`: relative to the configuration file, otherwise looked up by name in the catalogue.
-- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate`, `nav_bar`.
-- At the top level, next to `theme` and `services`: the settings of the Settings window, for example `quit_without_asking`, `keep_in_background`, `start_minimized`, `show_tray`, `dnd`, `hide_notification_content`, `icon_size`, `language`, `hibernation_minutes`, `download_dir`, `download_ask`, `update_user_agent`, `chrome_major`, `update_check`, `update_checked`, `lock_enabled`, `lock_hash`, `last_service` (see `qml/Main.qml`, `defaults`). Keys unknown to Rust are kept as they are.
+- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate`, `nav_bar`, `reload_shortcut` (absent: the default one).
+- At the top level, next to `theme` and `services`: the settings of the Settings window, for example `quit_without_asking`, `keep_in_background`, `start_minimized`, `show_tray`, `dnd`, `hide_notification_content`, `icon_size`, `language`, `hibernation_minutes`, `download_dir`, `download_ask`, `update_user_agent`, `chrome_major`, `update_check`, `update_checked`, `lock_enabled`, `lock_hash`, `last_service`, `reload_shortcut` (see `qml/Main.qml`, `defaults`). Keys unknown to Rust are kept as they are.
 - The old format, a plain array of services, is still read.
 - The catalogue is read from `recipes/` next to the configuration file, otherwise from the project's `recipes/` (found by walking up from the binary), or from `share/vigie-rs/recipes` once installed (`/usr/share/vigie-rs/recipes`).
 - An unreadable configuration file is never overwritten: Vigie starts empty and saves nothing.
@@ -233,7 +235,9 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - keep in background: closing hides the window without quitting, and a second launch shows it again;
   - Do not disturb is saved, the content of notifications can be hidden, a disabled service is not loaded, a two-factor code from a notification is copied, and the password lock opens only with the right password;
   - last service: the service shown when Vigie closes is the one shown when it starts again;
-  - Google sign-in (`*.google.com` served locally): the engine's user agent on every request, then the Chrome one again; with three services sharing a session, signing in to Gmail brings the other two back to their service, signed in.
+  - Google sign-in (`*.google.com` served locally): the engine's user agent on every request, then the Chrome one again; with three services sharing a session, signing in to Gmail brings the other two back to their service, signed in;
+  - dark theme: a page sees `prefers-color-scheme: dark`, and notification permission is already granted when it loads;
+  - reload: Ctrl+R reloads the current service, its service worker kept (WhatsApp recipe); a service with its own shortcut ignores Ctrl+R and reloads with its own.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
 
