@@ -63,6 +63,8 @@ node -e "const pages = {
   '/apres': '<script>console.log(\"UA apres \" + navigator.userAgent)</script>',
   '/schema': '<script>console.log(\"SCHEMA \" + matchMedia(\"(prefers-color-scheme: dark)\").matches + \" NOTIF \" + Notification.permission)</script>',
   '/recharge': '<script>localStorage.n = +(localStorage.n || 0) + 1; navigator.serviceWorker.getRegistrations().then(r => { console.log(\"CHARGE \" + localStorage.n + \" SW \" + r.length); return navigator.serviceWorker.register(\"/sw.js\") })</script>',
+  '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page \" + e.name))</script>',
+  '/passkey-cadre': '<script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre \" + e.name))</script>',
 };
 require('http').createServer((q, r) => {
   if (q.url === '/connexion') {
@@ -409,3 +411,25 @@ kill -0 $app 2>/dev/null || fail 'inspecteur : Vigie a planté'
 stop
 rm -f example/.inspecter.json
 echo 'ok : inspecteur (outils de développement dans une fenêtre)'
+
+# Clé de sécurité : Qt WebEngine ne montre rien au début d'une demande, et la page attendait en
+# silence (UniFi, après l'adresse). Vigie ouvre sa fenêtre dès la demande (page ou cadre) ; Échap
+# l'annule, et les deux demandes échouent (AbortError) au lieu d'attendre.
+printf '{"services": [{"id": "pk", "name": "Passkey", "url": "http://localhost:8123/passkey"}]}\n' >example/.passkey.json
+start example/.passkey.json
+found=
+for _ in $(seq 20); do
+  found=$(xdotool search --name '^(Clé de sécurité|Security key)$' 2>/dev/null | head -1 || true)
+  [ -n "$found" ] && break
+  sleep 0.5
+done
+[ -n "$found" ] || fail 'clé de sécurité : fenêtre non ouverte'
+sleep 1
+xdotool windowfocus --sync "$found" key Escape
+wait_log 'console : PASSKEY page AbortError' || fail 'clé de sécurité : demande de la page non annulée'
+wait_log 'console : PASSKEY cadre AbortError' || fail 'clé de sécurité : demande du cadre non annulée'
+sleep 1
+[ -z "$(xdotool search --name '^(Clé de sécurité|Security key)$' 2>/dev/null || true)" ] || fail 'clé de sécurité : fenêtre restée ouverte'
+stop
+rm -f example/.passkey.json
+echo 'ok : clé de sécurité (fenêtre dès la demande, Échap annule la page et ses cadres)'

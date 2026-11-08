@@ -229,6 +229,8 @@ Item {
                 onIconChanged: view.app.setFavicon(view.sid, icon)
                 onPermissionRequested: permission => view.app.askPermission(view.svc, permission)
                 onNewWindowRequested: request => view.app.newWindow(view.svc, web.profile, request)
+                property var webAuthWindow: null
+                onWebAuthUxRequested: request => view.app.webAuth(web, request)
                 onNavigationRequested: request => {
                     if (!request.isMainFrame)
                         return
@@ -248,6 +250,7 @@ Item {
                     contextMenu.show(request)
                 }
                 onJavaScriptConsoleMessage: (level, message, line, source) => {
+                    view.app.webAuthMessage(web, message)
                     if (view.app.logConsole)
                         console.log(`[${view.svc.name}] console : ${message}`)
                 }

@@ -14,6 +14,7 @@ fn main() {
         "qml/InternalWindow.qml",
         "qml/SettingsDialog.qml",
         "qml/ServiceEditor.qml",
+        "qml/WebAuthWindow.qml",
     ];
     CxxQtBuilder::new_qml_module(QmlModule::new("Vigie").qml_files(qml))
         .files(["src/backend.rs", "src/qtapp.rs"])

@@ -251,6 +251,67 @@ ApplicationWindow {
             persistentPermissionsPolicy: WebEngineProfile.StoreInMemory
         }
     }
+    // Clés de sécurité : Qt WebEngine ne montre rien au début d'une demande, et la page attend en
+    // silence (3 minutes au moins). Le script la signale à Vigie, qui ouvre la fenêtre « Clé de
+    // sécurité », et l'annule quand Vigie le lui demande (page et cadres). Pas de remplissage
+    // automatique (mediation: "conditional") : il resterait en attente sans rien montrer.
+    readonly property var webAuthScript: {
+        const s = WebEngine.script()
+        s.name = "vigie-webauthn"
+        s.injectionPoint = WebEngineScript.DocumentCreation
+        s.worldId = WebEngineScript.MainWorld
+        s.runsOnSubFrames = true
+        s.sourceCode = `(() => {
+            const c = window.CredentialsContainer?.prototype
+            if (!c) return
+            const pending = new Set()
+            addEventListener("message", e => {
+                if (e.data !== "vigie-webauthn-cancel") return
+                for (const a of pending) a.abort()
+                for (let i = 0; i < frames.length; i++) frames[i].postMessage(e.data, "*")
+            })
+            for (const f of ["get", "create"]) {
+                const native = c[f]
+                c[f] = function (options) {
+                    if (!options?.publicKey || options.mediation === "conditional") return native.apply(this, arguments)
+                    const a = new AbortController()
+                    pending.add(a)
+                    console.debug("vigie:webauthn-start " + location.hostname)
+                    const signal = options.signal ? AbortSignal.any([options.signal, a.signal]) : a.signal
+                    return native.call(this, { ...options, signal }).finally(() => {
+                        pending.delete(a)
+                        console.debug("vigie:webauthn-end")
+                    })
+                }
+            }
+            if (window.PublicKeyCredential)
+                PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false)
+        })()`
+        return s
+    }
+    // Messages du script ci-dessus, et étapes envoyées par Qt (request) : une fenêtre par vue web.
+    function webAuthMessage(web, message) {
+        if (message.startsWith("vigie:webauthn-start ")) {
+            const w = webAuth(web, null)
+            w.site = w.site || message.slice(21)
+            w.pending++
+        } else if (message === "vigie:webauthn-end" && web.webAuthWindow) {
+            if (--web.webAuthWindow.pending <= 0)
+                web.webAuthWindow.finish()
+        }
+    }
+    function webAuth(web, request) {
+        if (!web.webAuthWindow)
+            web.webAuthWindow = webAuthWindow.createObject(root, { app: root, web: web })
+        if (request)
+            web.webAuthWindow.request = request
+        web.webAuthWindow.raise()
+        return web.webAuthWindow
+    }
+    Component {
+        id: webAuthWindow
+        WebAuthWindow {}
+    }
     function profileFor(svc) {
         const key = sessionKey(svc)
         if (!profiles[key]) {
@@ -259,6 +320,7 @@ ApplicationWindow {
                 engineUserAgent = p.httpUserAgent
             p.presentNotification.connect(n => root.notify(key, n))
             p.downloadRequested.connect(d => root.download(d))
+            p.userScripts.insert(webAuthScript)
             profiles[key] = p
         }
         profileAgents[key] = svc.user_agent || ""
