@@ -9,6 +9,8 @@
 # PREFIX vaut /usr par défaut ; sudo n'est demandé que si le préfixe n'est pas modifiable.
 # Services : ~/.config/vigie-rs/settings.json (autre fichier : VIGIE_CONFIG=chemin ./vigie-rs).
 # Prérequis hôte (Debian, Ubuntu) : Qt 6 WebEngine et ses modules QML, voir QT_PACKAGES.
+# Vigie embarque son propre Qt WebEngine (qtwebengine/, avec VA-API pour le H.265), recompilé la
+# première fois puis après chaque mise à jour de celui d'Ubuntu : plusieurs heures (outils/qtwebengine.sh).
 set -eu
 cd "$(dirname "$(readlink -f "$0")")"
 prefix=${PREFIX:-/usr}
@@ -36,11 +38,29 @@ build() {
     -v vigie-rs-cargo:/usr/local/cargo/registry -v "vigie-rs-target:$p/target" \
     -e VIGIE_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)" -e VIGIE_CHANNEL=source \
     vigie-rs-dev sh outils/release.sh "$(id -u)" "$(id -g)"
+  webengine
   missing=$(ldd bin/vigie-rs | grep 'not found' || true)
   if [ -n "$missing" ]; then
     printf 'Bibliothèques manquantes sur l’hôte :\n%s\n→ sudo apt install %s\n' "$missing" "$QT_PACKAGES"
     exit 1
   fi
+}
+
+# Qt WebEngine embarqué dans qtwebengine/ (outils/qtwebengine.sh) : celui d'Ubuntu, recompilé avec
+# VA-API pour le H.265. Refait quand Ubuntu met à jour le sien (correctifs de sécurité) : plusieurs
+# heures. En cas d'échec, Vigie prend celui du système.
+webengine() {
+  want=$(dpkg-query -W -f '${Version}' libqt6webenginecore6 2>/dev/null) || return 0
+  [ "$(cut -d, -f1 qtwebengine/version 2>/dev/null)" = "$want" ] && return 0
+  echo "Recompilation de Qt WebEngine $want avec VA-API, pour Vigie (plusieurs heures)…"
+  # Nommé : une seconde recompilation en même temps est refusée (même dossier /build). Bridé
+  # (8 Go sans swap, 1 tâche, priorité minimale) pour que la machine reste utilisable : plus
+  # lent, et c'est la compilation qui est tuée si la mémoire manque, pas le bureau. Certains
+  # fichiers de Chromium dépassent 6 Go à eux seuls.
+  docker run --rm --name vigie-qtwebengine --cpus=4 --memory=8g --memory-swap=8g -e JOBS=1 \
+    -v "$p:$p" -w "$p" -v vigie-rs-qtwebengine:/build \
+    vigie-rs-dev nice -n 19 sh outils/qtwebengine.sh "$(id -u)" "$(id -g)" \
+    || echo "Échec : Vigie utilisera le Qt WebEngine du système (sans H.265)."
 }
 
 install_files() {
@@ -51,6 +71,8 @@ install_files() {
   $as_admin cp -r recipes "$prefix/share/vigie-rs/"
   # Dictionnaires du correcteur, cherchés dans ../share/vigie-rs/dictionaries.
   if [ -d dictionaries ]; then $as_admin cp -r dictionaries "$prefix/share/vigie-rs/"; fi
+  # Qt WebEngine embarqué, cherché dans ../share/vigie-rs/qtwebengine (RUNPATH du binaire).
+  if [ -d qtwebengine ]; then $as_admin cp -R qtwebengine "$prefix/share/vigie-rs/"; fi
   # Entrée du menu des applications et icône (le bureau les associe à la fenêtre par l'id de l'app).
   $as_admin install -D -m 644 "assets/$app.desktop" "$desktop"
   $as_admin install -D -m 644 "assets/$app.svg" "$icon"

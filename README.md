@@ -113,9 +113,17 @@ When a service asks for the microphone or the camera (a call, a voice message…
 
 Qt WebEngine shows nothing when a site asks for a security key (WebAuthn): the page just waited, for 3 minutes at least (UniFi seemed stuck after the email address). Vigie opens a "Security key" window as soon as the page, or one of its frames, asks: plug the key in and touch it. The same window then asks for the key's PIN or the account to use, or says why it failed. Cancel, or Escape, ends the request, and the site offers another way to sign in. Only USB keys work: Qt WebEngine has no passkeys on a phone or in a password manager.
 
+### Video
+
+Chromium decodes H.265 (HEVC) only with the graphics card (VA-API), and Ubuntu builds its Qt WebEngine without VA-API: it uses the system's libvpx, and Qt then turns VA-API off. So Vigie brings its own Qt WebEngine, in `qtwebengine/`: Ubuntu's package, same version and patches, rebuilt with the bundled libvpx (`outils/qtwebengine.sh`). With it, videos are decoded by the graphics card, H.265 included (UniFi Protect cameras with Enhanced Encoding). On OpenGL, which Qt uses, Chromium only allows this with the `AcceleratedVideoDecodeLinuxGL` feature, which Vigie turns on unless GPU acceleration is off. Without it, H.264, VP9 and AV1 play, H.265 doesn't.
+
+`./vigie-rs` rebuilds it the first time, then whenever Ubuntu updates its own (security fixes): several hours, held to 8 GB of memory and 1 job so that the machine stays usable, and about 15 GB in the `vigie-rs-qtwebengine` Docker volume. `./vigie-rs install` copies it to `share/vigie-rs/qtwebengine`. The binary looks for its libraries there first (RUNPATH, `build.rs`), and `src/main.rs` then points Qt to its web process, resources and QML module. The rest of Qt still comes from the system, at the same version. If the rebuild fails, or for release archives (built without it), Vigie uses the system's Qt WebEngine.
+
 ### Network and sleep
 
 When the network isn't there yet (session start, waking from sleep, Wi-Fi or VPN connecting), Chromium shows its error page (ERR_NETWORK_CHANGED, no Internet, name or server not found) and never goes back to the service. Vigie reloads it 4 times (after 2, 4, 8 and 16 s), then only when NetworkManager says the Internet is back, once per service, a few random seconds apart so that waking up doesn't reload everything at once. It never reloads in a loop, and nothing piles up while the machine sleeps.
+
+Vigie never blocks sleep: its own Qt WebEngine (see Video) is built without Chromium's sleep inhibition, which otherwise keeps the machine awake while a sound plays or a video is on screen (a camera's live view). With the system's Qt WebEngine, Chromium can still block it in those cases.
 
 ### New windows
 
@@ -221,6 +229,7 @@ qdbus6 io.github.vigie_rs /io/github/vigie_rs
 - `cpp/app.h`, `src/qtapp.rs`: the `QApplication` (KDE's Qt integration needs widgets) and Qt WebEngine set-up, which cxx-qt-lib does not expose.
 - `src/update.rs`: updates (latest release or `main` on GitHub, download, SHA-256, install, restart).
 - `outils/release.sh`: release build and spell-checker dictionaries, run in the container by `./vigie-rs`.
+- `outils/qtwebengine.sh`: Vigie's own Qt WebEngine, with VA-API and without sleep inhibition (see Video, Network and sleep), rebuilt in the container by `./vigie-rs`.
 - `outils/package.sh`, `.github/workflows/release.yml`: release archive, built and published for each `v*` tag.
 
 ## Building and testing (Docker)
@@ -283,5 +292,7 @@ Ferdium itself continues the work of [Ferdi](https://github.com/getferdi/ferdi) 
 Vigie's own code is released under the MIT licence, see `LICENSE`.
 
 The `recipes/` catalogue is distributed under the MIT licence, © Ferdium Contributors, from [ferdium-recipes](https://github.com/ferdium/ferdium-recipes). Its copyright notice, in `recipes/LICENSE.md`, and the `LICENSE` files inside individual recipes must stay with the files. Exception: `recipes/weekplan` is under Apache-2.0 (see its `LICENSE`).
+
+Vigie's Qt WebEngine (`qtwebengine/`), rebuilt from Ubuntu's `qt6-webengine` source package with one build option and one line of Chromium changed, keeps its licences (LGPL-3 and others, Chromium's included), listed in `qtwebengine/copyright`.
 
 The spell-checker dictionaries, converted from the hunspell packages of Ubuntu and shipped in the release archives, keep their own licences (French: MPL-2.0; English: SCOWL and WordNet notices), copied next to them in `dictionaries/*.copyright`.
