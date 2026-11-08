@@ -37,6 +37,8 @@ const EN: &[(&str, &str)] = &[
     ("Raccourci", "Shortcut"),
     ("Recharger le service affiché (F5 aussi ; chaque service peut avoir le sien)", "Reload the service shown (F5 too; each service can have its own)"),
     ("Raccourci pour recharger", "Reload shortcut"),
+    ("Inspecter", "Inspect"),
+    ("Inspecteur — %1", "Inspector — %1"),
     ("Ajouter un service", "Add a service"),
     ("Paramètres", "Settings"),
     ("Aucun service", "No service"),

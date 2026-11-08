@@ -73,7 +73,7 @@ The Action creates the release itself. Don't create it on GitHub's Releases page
 - **Tray**: a grey eye at rest, red with direct unread messages, blue with indirect ones only. Its menu shows or hides the window, toggles Do not disturb, locks Vigie, or quits.
 - **Window title**: the total of unread messages and the current service, for example "(3) WhatsApp — Vigie".
 - **Last service**: Vigie opens again on the service that was shown when it was closed.
-- **Right-click in a page**: spelling suggestions, cut, copy, paste, open or copy a link, copy or save an image, translate the selection, back, forward, reload.
+- **Right-click in a page**: spelling suggestions, cut, copy, paste, open or copy a link, copy or save an image, translate the selection, back, forward, reload, and **Inspect**: Chromium's developer tools (elements, console, network…) for that page, in a window of their own.
 - **Navigation bar** (never, always, or per service): back, forward, service home, address, open in the browser.
 - **Ctrl+W** closes the window like its close button.
 - **Ctrl+R** (and F5) reloads the current service. The page no longer gets that key: a service that uses Ctrl+R itself can take another shortcut in its editor, and Settings → General changes the default one. A shortcut is written like `Ctrl+Shift+R` or `Alt+R`.
@@ -239,7 +239,8 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - last service: the service shown when Vigie closes is the one shown when it starts again;
   - Google sign-in (`*.google.com` served locally): the engine's user agent on every request, then the Chrome one again; with three services sharing a session, signing in to Gmail brings the other two back to their service, signed in;
   - dark theme: a page sees `prefers-color-scheme: dark`, and notification permission is already granted when it loads;
-  - reload: Ctrl+R reloads the current service, its service worker kept (WhatsApp recipe); a service with its own shortcut ignores Ctrl+R and reloads with its own.
+  - reload: Ctrl+R reloads the current service, its service worker kept (WhatsApp recipe); a service with its own shortcut ignores Ctrl+R and reloads with its own;
+  - inspector: Inspect, in a page's right-click menu, opens Chromium's developer tools in a window, without crashing Vigie;
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
 
