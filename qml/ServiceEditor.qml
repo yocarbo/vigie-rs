@@ -9,6 +9,7 @@ Page {
     required property var app
     property var service: ({})
     property bool isNew: true
+    readonly property bool navBarDefault: app.settings.nav_bar === "always"
     signal done
     signal back
 
@@ -43,7 +44,11 @@ Page {
         set("mute_sound", !sound.checked)
         set("exclude_from_total", !total.checked)
         set("hibernate", hibernate.checked)
-        set("nav_bar", navBar.checked)
+        // Gardé seulement s'il diffère du réglage général, qui reste sinon la référence.
+        if (navBar.checked === navBarDefault)
+            delete svc.nav_bar
+        else
+            svc.nav_bar = navBar.checked
         set("new_windows", ["", "browser", "internal"][newWindows.currentIndex])
         set("session", session.text.trim())
         set("user_agent", userAgent.text.trim())
@@ -155,12 +160,12 @@ Page {
             }
             Label {
                 text: editor.t("Barre de navigation")
-                visible: editor.app.settings.nav_bar === "custom"
             }
             Switch {
                 id: navBar
-                visible: editor.app.settings.nav_bar === "custom"
-                checked: !!editor.service.nav_bar
+                checked: typeof editor.service.nav_bar === "boolean" ? editor.service.nav_bar : editor.navBarDefault
+                ToolTip.visible: hovered
+                ToolTip.text: editor.t("Adresse de la page, précédent, suivant et accueil, au-dessus du service. Par défaut : selon Paramètres → Apparence.")
             }
             Label {
                 text: editor.t("Nouvelles fenêtres")
