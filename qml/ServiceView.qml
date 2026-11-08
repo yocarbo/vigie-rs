@@ -16,7 +16,8 @@ Item {
     readonly property var info: app.info(svc)
     // Mode sombre de la page : thème de la recipe s'il existe, sinon mode sombre automatique de Chromium.
     readonly property bool darkFor: app.dark && (svc.dark_mode ?? info.recipeDark)
-    readonly property bool showNav: app.settings.nav_bar === "always" || (app.settings.nav_bar === "custom" && !!svc.nav_bar)
+    // Celui du service s'il en a un, sinon le réglage général (« custom », ancienne valeur : jamais).
+    readonly property bool showNav: typeof svc.nav_bar === "boolean" ? svc.nav_bar : app.settings.nav_bar === "always"
     property bool recipeForcesDark: false
     property var detachedWindow: null
     // Veille prolongée : page chargée seulement à la première ouverture (veille au démarrage),

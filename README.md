@@ -92,7 +92,7 @@ Every change is saved to the configuration file and applied without restarting, 
   - configuration export and import.
 - **Version**: the current version and how it was built (release, or source with its commit), **Check for a new version**, then **Install** and **Restart** when there is one (see [Updating](#updating)), and the weekly check.
 - **Notifications**: Do not disturb, hide the content of notifications, badges of muted services, two-factor codes (a 4 to 8-digit code in a notification that contains one of the keywords is copied to the clipboard).
-- **Appearance**: theme, icon size, names under icons, disabled services in the sidebar, navigation bar.
+- **Appearance**: theme, icon size, names under icons, disabled services in the sidebar, navigation bar (with the page address; the default, each service can have its own in its editor).
 - **Privacy**: password lock (at startup, on demand, or after N minutes away from the window; only an Argon2 hash is stored), WebRTC IP policy.
 - **Advanced**: downloads (into the system's downloads folder by default, `~/Téléchargements` or `~/Downloads`, or into a chosen folder, or ask every time), default user agent and its automatic update, GPU acceleration, spell checking (French and/or English), translator (Google Translate or DeepL, in the browser).
 
@@ -199,7 +199,7 @@ Recipes run in an isolated JavaScript world (Qt WebEngine's `ApplicationWorld`):
 
 - `id`: letters, digits, `-`, `_`; it is also the name of the data folder. A duplicate id is ignored.
 - `recipe`: relative to the configuration file, otherwise looked up by name in the catalogue.
-- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate`, `nav_bar`, `reload_shortcut` (absent: the default one).
+- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate`, `nav_bar` (address bar, back, forward, home; absent: the Appearance setting), `reload_shortcut` (absent: the default one).
 - At the top level, next to `theme` and `services`: the settings of the Settings window, for example `quit_without_asking`, `keep_in_background`, `start_minimized`, `show_tray`, `dnd`, `hide_notification_content`, `icon_size`, `language`, `hibernation_minutes`, `download_dir`, `download_ask`, `update_user_agent`, `chrome_major`, `update_check`, `update_checked`, `lock_enabled`, `lock_hash`, `last_service`, `reload_shortcut` (see `qml/Main.qml`, `defaults`). Keys unknown to Rust are kept as they are.
 - The old format, a plain array of services, is still read.
 - The catalogue is read from `recipes/` next to the configuration file, otherwise from the project's `recipes/` (found by walking up from the binary), or from `share/vigie-rs/recipes` once installed (`/usr/share/vigie-rs/recipes`).
@@ -258,7 +258,9 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - dark theme: a page sees `prefers-color-scheme: dark`, and notification permission is already granted when it loads;
   - reload: Ctrl+R reloads the current service, its service worker kept (WhatsApp recipe); a service with its own shortcut ignores Ctrl+R and reloads with its own;
   - inspector: Inspect, in a page's right-click menu, opens Chromium's developer tools in a window, without crashing Vigie;
-  - security key: a WebAuthn request, from the page or a frame, opens the "Security key" window; Escape cancels both requests.
+  - security key: a WebAuthn request, from the page or a frame, opens the "Security key" window; Escape cancels both requests;
+  - network: a page left on Chromium's error page at startup reloads by itself once its server answers;
+  - navigation bar: a service with its own `nav_bar` shows it while the setting says never, and an address typed there opens.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
 

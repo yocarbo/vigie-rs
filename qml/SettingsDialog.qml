@@ -415,9 +415,9 @@ Dialog {
                         }
                         Choice {
                             key: "nav_bar"
-                            text: dlg.t("Barre de navigation")
-                            values: ["never", "always", "custom"]
-                            labels: [dlg.t("Jamais"), dlg.t("Toujours"), dlg.t("Selon le service")]
+                            text: dlg.t("Barre de navigation (chaque service peut avoir son propre réglage)")
+                            values: ["never", "always"]
+                            labels: [dlg.t("Jamais"), dlg.t("Toujours")]
                         }
                     }
                 }

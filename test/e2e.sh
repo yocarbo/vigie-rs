@@ -65,6 +65,7 @@ node -e "const pages = {
   '/recharge': '<script>localStorage.n = +(localStorage.n || 0) + 1; navigator.serviceWorker.getRegistrations().then(r => { console.log(\"CHARGE \" + localStorage.n + \" SW \" + r.length); return navigator.serviceWorker.register(\"/sw.js\") })</script>',
   '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page \" + e.name))</script>',
   '/passkey-cadre': '<script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre \" + e.name))</script>',
+  '/barre': '<script>console.log(\"BARRE ok\")</script>',
 };
 require('http').createServer((q, r) => {
   if (q.url === '/connexion') {
@@ -446,3 +447,16 @@ stop
 kill $srv2
 rm -f example/.reseau.json
 echo 'ok : rechargement quand le réseau arrive (page d’erreur au démarrage)'
+
+# Barre de navigation propre au service (réglage général : jamais) : l'adresse saisie s'ouvre.
+printf '{"services": [{"id": "barre", "name": "Barre", "url": "http://localhost:8123/cible", "nav_bar": true}]}\n' >example/.barre.json
+start example/.barre.json
+sleep 3
+xdotool mousemove 700 20 click 1 # champ d'adresse, en haut du service
+sleep 0.5
+xdotool key ctrl+a type 'http://localhost:8123/barre'
+xdotool key Return
+wait_log '[Barre] console : BARRE ok' || fail 'barre de navigation : adresse saisie non ouverte'
+stop
+rm -f example/.barre.json
+echo 'ok : barre de navigation propre au service (adresse saisie ouverte)'
