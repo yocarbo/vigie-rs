@@ -24,6 +24,9 @@ ApplicationWindow {
         onWindowCloseRequested: win.close()
         onPermissionRequested: permission => win.app.askPermission(win.service, permission)
         onNewWindowRequested: request => win.app.newWindow(win.service, win.profile, request)
+        property var webAuthWindow: null
+        onWebAuthUxRequested: request => win.app.webAuth(web, request)
+        onJavaScriptConsoleMessage: (level, message) => win.app.webAuthMessage(web, message)
         onNavigationRequested: request => {
             if (request.isMainFrame && win.app.googlePage(win.service, request.url, web))
                 request.reject()

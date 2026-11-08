@@ -109,6 +109,10 @@ The lock hides Vigie and the content of notifications; services keep running and
 
 When a service asks for the microphone or the camera (a call, a voice message…), Vigie asks you first: Allow or Deny. The answer holds until Vigie is closed, so a mistaken refusal is not permanent. Other permissions are denied, except notifications.
 
+### Security keys and passkeys
+
+Qt WebEngine shows nothing when a site asks for a security key (WebAuthn): the page just waited, for 3 minutes at least (UniFi seemed stuck after the email address). Vigie opens a "Security key" window as soon as the page, or one of its frames, asks: plug the key in and touch it. The same window then asks for the key's PIN or the account to use, or says why it failed. Cancel, or Escape, ends the request, and the site offers another way to sign in. Only USB keys work: Qt WebEngine has no passkeys on a phone or in a password manager.
+
 ### New windows
 
 Per-service setting:
@@ -209,7 +213,7 @@ qdbus6 io.github.vigie_rs /io/github/vigie_rs
 - `src/i18n.rs`: English translations of the interface, written in French in the QML (`t("…")`).
 - `src/dbus.rs`: D-Bus interface and desktop notifications (Linux, with zbus).
 - `src/shim.js`, `src/main-world.js`: the `Vigie` object given to recipes, and `window.vigie` in the page.
-- `qml/`: the interface (window, sidebar, web views, settings, editor).
+- `qml/`: the interface (window, sidebar, web views, settings, editor, security key window).
 - `cpp/app.h`, `src/qtapp.rs`: the `QApplication` (KDE's Qt integration needs widgets) and Qt WebEngine set-up, which cxx-qt-lib does not expose.
 - `src/update.rs`: updates (latest release or `main` on GitHub, download, SHA-256, install, restart).
 - `outils/release.sh`: release build and spell-checker dictionaries, run in the container by `./vigie-rs`.
@@ -241,6 +245,7 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - dark theme: a page sees `prefers-color-scheme: dark`, and notification permission is already granted when it loads;
   - reload: Ctrl+R reloads the current service, its service worker kept (WhatsApp recipe); a service with its own shortcut ignores Ctrl+R and reloads with its own;
   - inspector: Inspect, in a page's right-click menu, opens Chromium's developer tools in a window, without crashing Vigie;
+  - security key: a WebAuthn request, from the page or a frame, opens the "Security key" window; Escape cancels both requests.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
 
