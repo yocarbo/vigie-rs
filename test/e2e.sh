@@ -388,3 +388,24 @@ wait_log '[Touche] console : CHARGE 2' || fail 'raccourci du service : Ctrl+Shif
 stop
 rm -f example/.recharge.json
 echo 'ok : rechargement (Ctrl+R, service worker gardé, raccourci propre au service)'
+
+# Inspecteur : clic droit, « Inspecter » ; les outils de Chromium s'ouvrent dans une fenêtre, sans
+# planter Vigie (posé dès la création de la fenêtre, `inspectedView` le faisait planter).
+printf '{"services": [{"id": "insp", "name": "Inspection", "url": "http://localhost:8123/inspecter"}]}\n' >example/.inspecter.json
+start example/.inspecter.json
+sleep 3
+xdotool mousemove 600 400 click 3
+sleep 1
+xdotool mousemove 628 494 click 1 # Inspecter, dernière entrée du menu
+found=
+for _ in $(seq 20); do
+  found=$(xdotool search --name '^(Inspecteur|Inspector) — Inspection' 2>/dev/null || true)
+  [ -n "$found" ] && break
+  sleep 0.5
+done
+[ -n "$found" ] || fail 'inspecteur : fenêtre non ouverte'
+sleep 2
+kill -0 $app 2>/dev/null || fail 'inspecteur : Vigie a planté'
+stop
+rm -f example/.inspecter.json
+echo 'ok : inspecteur (outils de développement dans une fenêtre)'

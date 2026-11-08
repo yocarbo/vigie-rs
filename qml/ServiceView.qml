@@ -378,6 +378,39 @@ Item {
             text: view.t("Recharger")
             onTriggered: web.reload()
         }
+        Entry {
+            text: view.t("Inspecter")
+            onTriggered: view.inspect()
+        }
+    }
+
+    // Outils de développement de Chromium (éléments, console, réseau) dans une fenêtre à part.
+    property var inspector: null
+    function inspect() {
+        if (!inspector) {
+            inspector = inspectorComponent.createObject(app, { title: t("Inspecteur — %1").arg(svc.name) })
+            inspector.closing.connect(() => {
+                web.devToolsView = null
+                inspector.destroy()
+                inspector = null
+            })
+        }
+        inspector.raise()
+    }
+    Component {
+        id: inspectorComponent
+        ApplicationWindow {
+            width: 1100
+            height: 700
+            visible: true
+            WebEngineView {
+                id: tools
+                anchors.fill: parent
+                profile: web.profile
+            }
+            // Posé une fois la fenêtre créée : `inspectedView` dès la création fait planter Chromium.
+            Component.onCompleted: Qt.callLater(() => web.devToolsView = tools)
+        }
     }
 
     Component.onCompleted: {
@@ -395,5 +428,7 @@ Item {
             delete app.views[sid]
         if (detachedWindow)
             detachedWindow.destroy()
+        if (inspector)
+            inspector.destroy()
     }
 }
