@@ -98,7 +98,21 @@ impl Vigie {
 pub fn serve(qt: CxxQtThread<Backend>) {
     let Some(conn) = CONN.get() else { return };
     let clicks = qt.clone();
+    let online = qt.clone();
     let vigie = Vigie { qt: Mutex::new(qt), direct: 0, indirect: 0, services: Vec::new(), muted: false };
+    // Connexion à Internet revenue (NetworkManager, état 70 : CONNECTED_GLOBAL), au démarrage de la
+    // session ou en sortie de veille : un signal, rien à interroger en boucle.
+    std::thread::spawn(move || {
+        let Ok(system) = Connection::system() else { return };
+        let nm = "org.freedesktop.NetworkManager";
+        let proxy = zbus::blocking::Proxy::new(&system, nm, "/org/freedesktop/NetworkManager", nm);
+        let Ok(signals) = proxy.and_then(|p| p.receive_signal("StateChanged")) else { return };
+        for msg in signals {
+            if msg.body().deserialize::<u32>().is_ok_and(|state| state == 70) {
+                let _ = online.queue(|b| b.network_online());
+            }
+        }
+    });
     if let Err(e) = conn.object_server().at(PATH, vigie) {
         eprintln!("D-Bus {PATH} : {e}");
     }

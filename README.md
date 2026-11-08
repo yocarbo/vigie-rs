@@ -113,6 +113,10 @@ When a service asks for the microphone or the camera (a call, a voice message…
 
 Qt WebEngine shows nothing when a site asks for a security key (WebAuthn): the page just waited, for 3 minutes at least (UniFi seemed stuck after the email address). Vigie opens a "Security key" window as soon as the page, or one of its frames, asks: plug the key in and touch it. The same window then asks for the key's PIN or the account to use, or says why it failed. Cancel, or Escape, ends the request, and the site offers another way to sign in. Only USB keys work: Qt WebEngine has no passkeys on a phone or in a password manager.
 
+### Network and sleep
+
+When the network isn't there yet (session start, waking from sleep, Wi-Fi or VPN connecting), Chromium shows its error page (ERR_NETWORK_CHANGED, no Internet, name or server not found) and never goes back to the service. Vigie reloads it 4 times (after 2, 4, 8 and 16 s), then only when NetworkManager says the Internet is back, once per service, a few random seconds apart so that waking up doesn't reload everything at once. It never reloads in a loop, and nothing piles up while the machine sleeps.
+
 ### New windows
 
 Per-service setting:
