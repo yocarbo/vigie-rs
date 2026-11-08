@@ -16,6 +16,11 @@ fn main() {
         "qml/ServiceEditor.qml",
         "qml/WebAuthWindow.qml",
     ];
+    // Qt WebEngine embarqué (outils/qtwebengine.sh), préféré à celui du système s'il est là : à côté
+    // du dépôt (bin/, target/release/) ou installé (share/vigie-rs).
+    for dir in ["../qtwebengine", "../../qtwebengine", "../share/vigie-rs/qtwebengine"] {
+        println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN/{dir}/lib");
+    }
     CxxQtBuilder::new_qml_module(QmlModule::new("Vigie").qml_files(qml))
         .files(["src/backend.rs", "src/qtapp.rs"])
         .include_dir("cpp")
