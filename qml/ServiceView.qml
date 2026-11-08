@@ -241,8 +241,40 @@ Item {
                         request.reject()
                 }
                 onLoadingChanged: info => {
-                    if (info.status === WebEngineLoadingInfo.LoadSucceededStatus)
+                    if (info.status === WebEngineLoadingInfo.LoadSucceededStatus) {
+                        retry.failed = false
+                        retry.tries = 0
                         view.app.googlePageLoaded(view.svc, web, info.url)
+                    } else if (info.status === WebEngineLoadingInfo.LoadFailedStatus
+                               && [21, 102, 104, 105, 106, 109, 118, 137].includes(Math.abs(info.errorCode))) {
+                        retry.failed = true
+                        if (retry.tries < 4) {
+                            retry.interval = 2000 << retry.tries++
+                            retry.restart()
+                        }
+                    }
+                }
+                // Réseau pas encore là (ouverture de session, sortie de veille, Wi-Fi ou VPN qui se
+                // connecte) : Chromium affiche sa page d'erreur (ERR_NETWORK_CHANGED, pas d'Internet,
+                // nom ou serveur introuvable…) et n'y revient pas. Vigie recharge 4 fois (2, 4, 8, 16 s :
+                // le réseau qui arrive pendant le chargement), puis attend NetworkManager : quand Internet
+                // revient, un seul rechargement, décalé au hasard de quelques secondes d'un service à
+                // l'autre pour ne pas tout relancer d'un coup. Jamais de rechargement en boucle.
+                Timer {
+                    id: retry
+                    property bool failed: false
+                    property int tries: 0
+                    onTriggered: web.reload()
+                }
+                Connections {
+                    target: Backend
+                    function onNetworkOnline() {
+                        if (!retry.failed)
+                            return
+                        retry.tries = 0
+                        retry.interval = 500 + Math.random() * 4500
+                        retry.restart()
+                    }
                 }
                 onFullScreenRequested: request => request.accept()
                 onContextMenuRequested: request => {

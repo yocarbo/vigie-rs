@@ -175,6 +175,11 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "notificationClicked"]
         fn notification_clicked(self: Pin<&mut Backend>, id: i32);
+
+        /// Connexion à Internet revenue (NetworkManager) : les pages restées en erreur se rechargent.
+        #[qsignal]
+        #[cxx_name = "networkOnline"]
+        fn network_online(self: Pin<&mut Backend>);
     }
 
     impl cxx_qt::Threading for Backend {}

@@ -433,3 +433,16 @@ sleep 1
 stop
 rm -f example/.passkey.json
 echo 'ok : clé de sécurité (fenêtre dès la demande, Échap annule la page et ses cadres)'
+
+# Réseau absent au démarrage : la page d'erreur de Chromium restait affichée. Le serveur du service
+# n'écoute pas encore (ERR_CONNECTION_REFUSED) ; Vigie recharge seul et la page arrive quand il démarre.
+printf '{"services": [{"id": "reseau", "name": "Réseau", "url": "http://localhost:8124/"}]}\n' >example/.reseau.json
+start example/.reseau.json
+sleep 4
+node -e "require('http').createServer((q, r) => r.end('<script>console.log(\"RESEAU ok\")</script>')).listen(8124)" &
+srv2=$!
+wait_log '[Réseau] console : RESEAU ok' || fail 'réseau : page non rechargée une fois le serveur prêt'
+stop
+kill $srv2
+rm -f example/.reseau.json
+echo 'ok : rechargement quand le réseau arrive (page d’erreur au démarrage)'
