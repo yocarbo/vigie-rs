@@ -218,29 +218,57 @@ pub fn source_script() -> Option<PathBuf> {
     (CHANNEL == "source" && script.is_file() && dir.join(".git").exists()).then_some(script)
 }
 
-/// `./vigie-rs update` dans un terminal, où l'on suit la compilation et tape le mot de passe de sudo ;
-/// pour l'installation d'où Vigie a été lancé (PREFIX), sauf s'il tourne depuis le dépôt lui-même.
+/// Journal de la dernière mise à jour depuis les sources, que suit la fenêtre de mise à jour.
+pub fn source_log() -> PathBuf {
+    dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("vigie-rs/update.log")
+}
+
+/// Fin du journal (64 Kio, à partir d'une ligne entière) : relu chaque seconde par la fenêtre, alors
+/// qu'une recompilation de Qt WebEngine y écrit des dizaines de Mo.
+pub fn source_log_tail() -> String {
+    use std::io::{Seek, SeekFrom};
+    const TAIL: u64 = 64 * 1024;
+    let Ok(mut file) = fs::File::open(source_log()) else { return String::new() };
+    let start = file.metadata().map(|m| m.len().saturating_sub(TAIL)).unwrap_or(0);
+    let mut bytes = Vec::new();
+    if file.seek(SeekFrom::Start(start)).and_then(|_| file.read_to_end(&mut bytes)).is_err() {
+        return String::new();
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    match (start, text.find('\n')) {
+        (0, _) | (_, None) => text.into_owned(),
+        (_, Some(i)) => text[i + 1..].to_owned(),
+    }
+}
+
+/// `./vigie-rs update` en tâche de fond, sans terminal : sa sortie va dans `source_log()`, terminée
+/// par `==> code N`. Le mot de passe d'administrateur, s'il faut installer dans un dossier système,
+/// est demandé par la fenêtre du système (pkexec, le script n'ayant pas de terminal). Dans son propre
+/// groupe de processus : fermer Vigie n'arrête pas une compilation en cours. Pour l'installation d'où
+/// Vigie a été lancé (PREFIX), sauf s'il tourne depuis le dépôt lui-même.
 pub fn update_from_source() -> Result<(), String> {
     let script = source_script().ok_or("dépôt des sources introuvable")?;
     let repo = script.parent().unwrap_or(Path::new("."));
     let prefix = prefix().filter(|p| p.join("bin/vigie-rs").is_file() && p.canonicalize().ok() != repo.canonicalize().ok());
-    let command = "[ -z \"$1\" ] || export PREFIX=\"$1\"; \"$0\" update; echo; printf 'Entrée pour fermer… '; read _";
-    let args = [
-        "sh".to_owned(),
-        "-c".to_owned(),
-        command.to_owned(),
-        script.to_string_lossy().into_owned(),
-        prefix.map(|p| p.to_string_lossy().into_owned()).unwrap_or_default(),
-    ];
-    // ponytail: terminaux courants de Linux ; ajouter le sien ici s'il manque.
-    for (terminal, flag) in [("x-terminal-emulator", "-e"), ("konsole", "-e"), ("gnome-terminal", "--"), ("xterm", "-e")] {
-        match std::process::Command::new(terminal).arg(flag).args(&args).spawn() {
-            Ok(_) => return Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(e) => return Err(e.to_string()),
-        }
+    let log = source_log();
+    fs::create_dir_all(log.parent().unwrap_or(Path::new("."))).map_err(|e| e.to_string())?;
+    let out = fs::File::create(&log).map_err(|e| e.to_string())?;
+    let err = out.try_clone().map_err(|e| e.to_string())?;
+    let mut command = std::process::Command::new("sh");
+    command
+        .args(["-c", "\"$0\" update; echo \"==> code $?\"", &script.to_string_lossy()])
+        .stdin(std::process::Stdio::null())
+        .stdout(out)
+        .stderr(err);
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
+    if let Some(prefix) = prefix {
+        command.env("PREFIX", prefix);
     }
-    Err("aucun terminal trouvé (x-terminal-emulator, konsole, gnome-terminal, xterm)".to_owned())
+    let mut child = command.spawn().map_err(|e| e.to_string())?;
+    // Attendu ici, pour ne pas laisser de processus zombie.
+    std::thread::spawn(move || child.wait());
+    Ok(())
 }
 
 /// Relance Vigie (le nouveau binaire) dès que ce processus est terminé et son nom D-Bus libéré :

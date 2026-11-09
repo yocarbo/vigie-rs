@@ -384,10 +384,14 @@ ApplicationWindow {
         }
         const canInstall = JSON.parse(Backend.versionInfo()).canInstall
         updateStatus = kind === "source"
-            ? (canInstall ? t("Une nouvelle version de Vigie est sur GitHub.")
-                : t("Une nouvelle version de Vigie est sur GitHub : lance ./vigie-rs update."))
+            ? (canInstall ? t("Une nouvelle version de Vigie est disponible.")
+                : t("Une nouvelle version de Vigie est disponible : lance ./vigie-rs update."))
             : t("Vigie %1 est disponible.").arg(version)
-        if (canInstall)
+        // Recherche automatique (option « installer automatiquement ») : installée sans attendre ;
+        // Redémarrer est proposé à la fin.
+        if (canInstall && !updateManual)
+            installUpdate()
+        else if (canInstall)
             toast.show(updateStatus, t("Installer"), installUpdate)
         else
             toast.show(updateStatus, t("Voir les changements"), () => Qt.openUrlExternally(url))
@@ -398,14 +402,26 @@ ApplicationWindow {
             Backend.installUpdate()
             return
         }
+        // Déjà lancée : sa fenêtre, cachée, se rouvre.
+        if (updateWindow) {
+            updateWindow.show()
+            updateWindow.raise()
+            return
+        }
         const failed = Backend.updateFromSource()
         if (failed) {
             updateStatus = t("Échec de la mise à jour : %1").arg(failed)
             toast.show(updateStatus)
             return
         }
-        updateDone = true
-        updateStatus = t("Mise à jour lancée dans un terminal : redémarre Vigie une fois qu'elle est finie.")
+        updateStatus = t("Mise à jour en cours…")
+        updateWindow = updateWindowComponent.createObject(root, { app: root })
+    }
+    // Mise à jour depuis les sources en cours, ou finie et pas encore fermée.
+    property var updateWindow: null
+    Component {
+        id: updateWindowComponent
+        UpdateWindow {}
     }
     function updateInstalled(error) {
         if (error) {

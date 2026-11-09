@@ -6,7 +6,10 @@
 #   ./vigie-rs update      récupère la dernière version (main), la recompile, et la réinstalle
 #                          si Vigie est installé dans $PREFIX ;
 #   ./vigie-rs uninstall   le désinstalle (la configuration et les connexions restent).
-# PREFIX vaut /usr par défaut ; sudo n'est demandé que si le préfixe n'est pas modifiable.
+# PREFIX vaut /usr par défaut ; le mot de passe d'administrateur n'est demandé (une fois) que si le
+# préfixe n'est pas modifiable : par sudo dans un terminal, sinon par la fenêtre du système (pkexec),
+# quand Vigie lance lui-même la mise à jour. Les étapes s'affichent en lignes « ==> », que Vigie
+# reprend dans sa fenêtre de mise à jour.
 # Services : ~/.config/vigie-rs/settings.json (autre fichier : VIGIE_CONFIG=chemin ./vigie-rs).
 # Prérequis hôte (Debian, Ubuntu) : Qt 6 WebEngine et ses modules QML, voir QT_PACKAGES.
 # Vigie embarque son propre Qt WebEngine (qtwebengine/, avec VA-API pour le H.265), recompilé la
@@ -20,7 +23,10 @@ icon=$prefix/share/icons/hicolor/scalable/apps/$app.svg
 QT_PACKAGES="libqt6webenginequick6 qml6-module-qtwebengine qml6-module-qtwebchannel qml6-module-qtquick-controls \
 qml6-module-qtquick-layouts qml6-module-qtquick-dialogs qml6-module-qtquick-effects qml6-module-qt-labs-platform"
 as_admin=
-[ -w "$prefix" ] || as_admin=sudo
+if [ ! -w "$prefix" ]; then
+  if [ -t 0 ]; then as_admin=sudo; else as_admin=pkexec; fi
+fi
+step() { echo "==> $*"; }
 
 uninstall() {
   $as_admin rm -f "$prefix/bin/vigie-rs" "$desktop" "$icon"
@@ -34,6 +40,7 @@ uninstall() {
 build() {
   p=$PWD
   mkdir -p bin # créé ici pour t'appartenir, pas à root
+  step "Compilation de Vigie dans le conteneur (quelques minutes)…"
   docker run --rm -v "$p:$p" -w "$p" \
     -v vigie-rs-cargo:/usr/local/cargo/registry -v "vigie-rs-target:$p/target" \
     -e VIGIE_COMMIT="$(git rev-parse HEAD 2>/dev/null || true)" -e VIGIE_CHANNEL=source \
@@ -52,7 +59,7 @@ build() {
 webengine() {
   want=$(dpkg-query -W -f '${Version}' libqt6webenginecore6 2>/dev/null) || return 0
   [ "$(cut -d, -f1 qtwebengine/version 2>/dev/null)" = "$want" ] && return 0
-  echo "Recompilation de Qt WebEngine $want avec VA-API, pour Vigie (plusieurs heures)…"
+  step "Recompilation de Qt WebEngine $want avec VA-API, pour Vigie (plusieurs heures)…"
   # Nommé : une seconde recompilation en même temps est refusée (même dossier /build). Bridé
   # (8 Go sans swap, 1 tâche, priorité minimale) pour que la machine reste utilisable : plus
   # lent, et c'est la compilation qui est tuée si la mémoire manque, pas le bureau. Certains
@@ -64,19 +71,26 @@ webengine() {
 }
 
 install_files() {
-  $as_admin install -D -m 755 bin/vigie-rs "$prefix/bin/vigie-rs"
+  if [ -n "$as_admin" ]; then
+    step "Installation dans $prefix : mot de passe d'administrateur demandé…"
+    # Un seul appel en administrateur, donc un seul mot de passe : le script refait l'installation.
+    $as_admin env PREFIX="$prefix" sh "$PWD/vigie-rs" install-files
+    return
+  fi
+  step "Installation dans $prefix…"
+  install -D -m 755 bin/vigie-rs "$prefix/bin/vigie-rs"
   # Le catalogue n'est pas dans le binaire : le binaire le cherche dans ../share/vigie-rs/recipes.
-  $as_admin rm -rf "$prefix/share/vigie-rs"
-  $as_admin mkdir -p "$prefix/share/vigie-rs"
-  $as_admin cp -r recipes "$prefix/share/vigie-rs/"
+  rm -rf "$prefix/share/vigie-rs"
+  mkdir -p "$prefix/share/vigie-rs"
+  cp -r recipes "$prefix/share/vigie-rs/"
   # Dictionnaires du correcteur, cherchés dans ../share/vigie-rs/dictionaries.
-  if [ -d dictionaries ]; then $as_admin cp -r dictionaries "$prefix/share/vigie-rs/"; fi
+  if [ -d dictionaries ]; then cp -r dictionaries "$prefix/share/vigie-rs/"; fi
   # Qt WebEngine embarqué, cherché dans ../share/vigie-rs/qtwebengine (RUNPATH du binaire).
-  if [ -d qtwebengine ]; then $as_admin cp -R qtwebengine "$prefix/share/vigie-rs/"; fi
+  if [ -d qtwebengine ]; then cp -R qtwebengine "$prefix/share/vigie-rs/"; fi
   # Entrée du menu des applications et icône (le bureau les associe à la fenêtre par l'id de l'app).
-  $as_admin install -D -m 644 "assets/$app.desktop" "$desktop"
-  $as_admin install -D -m 644 "assets/$app.svg" "$icon"
-  $as_admin gtk-update-icon-cache -q -t "$prefix/share/icons/hicolor" 2>/dev/null || true
+  install -D -m 644 "assets/$app.desktop" "$desktop"
+  install -D -m 644 "assets/$app.svg" "$icon"
+  gtk-update-icon-cache -q -t "$prefix/share/icons/hicolor" 2>/dev/null || true
   echo "vigie-rs installé : $prefix/bin/vigie-rs (recipes dans $prefix/share/vigie-rs)"
 }
 
@@ -88,15 +102,19 @@ case "${1:-}" in
     build
     install_files
     ;;
+  install-files) # appelé en administrateur par install_files
+    install_files
+    ;;
   update)
     # main, comparé par l'onglet Version : la branche en cours a pu être fusionnée puis supprimée.
+    step "Récupération des nouveautés de main…"
     git switch -q main
     git pull --ff-only
     build
     if [ -x "$prefix/bin/vigie-rs" ]; then
       install_files
     fi
-    echo "Vigie est à jour ($(git log -1 --format='%h, %cd' --date=short)). Relance-le pour utiliser la nouvelle version."
+    step "Vigie est à jour ($(git log -1 --format='%h, %cd' --date=short)). Relance-le pour utiliser la nouvelle version."
     ;;
   *)
     build

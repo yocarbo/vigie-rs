@@ -576,7 +576,7 @@ Dialog {
                                         : " " + dlg.t("Vigie ne peut pas remplacer ses fichiers : il signale les nouvelles versions sans les installer."))
                                 : updates.info.channel === "source"
                                 ? (updates.info.canInstall
-                                    ? dlg.t("Compilée depuis les sources (commit %1). « Installer » lance ./vigie-rs update dans un terminal : récupération de main, compilation, installation.").arg(updates.info.commit)
+                                    ? dlg.t("Compilée depuis les sources (commit %1). « Installer » récupère main, compile et installe la nouvelle version, dans une fenêtre qui en suit les étapes.").arg(updates.info.commit)
                                     : dlg.t("Compilée depuis les sources (commit %1) : ./vigie-rs update installe les nouveautés de main.").arg(updates.info.commit))
                                 : dlg.t("Compilée à la main.")
                         }
@@ -588,7 +588,7 @@ Dialog {
                             Button {
                                 visible: !!updates.found && updates.info.canInstall && !dlg.app.updateDone
                                 highlighted: true
-                                text: dlg.t("Installer")
+                                text: dlg.app.updateWindow ? dlg.t("Voir la progression") : dlg.t("Installer")
                                 onClicked: dlg.app.installUpdate()
                             }
                             Button {
@@ -612,7 +612,7 @@ Dialog {
                         }
                         Toggle {
                             key: "update_check"
-                            text: dlg.t("Rechercher les mises à jour chaque semaine (une requête à GitHub)")
+                            text: dlg.t("Rechercher et installer automatiquement les mises à jour")
                         }
                     }
                 }
