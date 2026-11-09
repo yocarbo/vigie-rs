@@ -260,7 +260,8 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - inspector: Inspect, in a page's right-click menu, opens Chromium's developer tools in a window, without crashing Vigie;
   - security key: a WebAuthn request, from the page or a frame, opens the "Security key" window; Escape cancels both requests;
   - network: a page left on Chromium's error page at startup reloads by itself once its server answers;
-  - navigation bar: a service with its own `nav_bar` shows it while the setting says never, and an address typed there opens.
+  - navigation bar: a service with its own `nav_bar` shows it while the setting says never, and an address typed there opens;
+  - Google Calendar reminders: the recipe's reminder cards (in place of `alert()`) are in view and counted in the badge; "In 5 min" takes its own away, closing clears the count, Escape elsewhere leaves it alone.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
 
