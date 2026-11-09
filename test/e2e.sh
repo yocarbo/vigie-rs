@@ -9,10 +9,19 @@ monitor=
 google=
 trap 'kill $app $srv $monitor $google 2>/dev/null || true' EXIT
 fail() { echo "ÉCHEC : $1"; cat "$log"; exit 1; }
+# Recherche de fenêtres réessayée : xdotool s'arrête net (BadWindow) quand une fenêtre disparaît
+# pendant qu'il la lit, ce que Qt fait au démarrage ; sur une machine lente (GitHub), ça arrive.
+xsearch() {
+  for _ in 1 2 3; do
+    xdotool search "$@" 2>/dev/null && return 0
+    sleep 0.3
+  done
+  return 1
+}
 start() { # $1 : configuration (relative au projet)
   VIGIE_CONFIG=$1 target/debug/vigie-rs >"$log" 2>&1 &
   app=$!
-  xdotool search --sync --name Vigie >/dev/null
+  xsearch --sync --name Vigie >/dev/null
 }
 stop() {
   kill $app 2>/dev/null || true
@@ -44,7 +53,7 @@ sleep 0.5
 vigie Muted | grep -q 'boolean true' || fail 'ToggleMute sans effet sur Muted'
 grep -q '"dnd": true' example/.services.json || fail 'Ne pas déranger non enregistré'
 rm -f example/.services.json
-xdotool search --name '^\(3\) Test local' >/dev/null || fail 'titre de la fenêtre sans le total (3) ni le service'
+xsearch --name '^\(3\) Test local' >/dev/null || fail 'titre de la fenêtre sans le total (3) ni le service'
 # Instance unique : un second lancement affiche la première et s'arrête.
 VIGIE_CONFIG=example/services.json timeout 10 target/debug/vigie-rs >/dev/null 2>&1 || fail 'second lancement : pas arrêté'
 kill -0 $app 2>/dev/null || fail 'second lancement : la première instance a disparu'
@@ -119,7 +128,7 @@ sleep 3
 xdotool mousemove 600 400 click 1
 found=
 for _ in $(seq 20); do
-  found=$(xdotool search --name 'Popup (avec|sans) opener' getwindowname %@ 2>/dev/null || true)
+  found=$(xsearch --name 'Popup (avec|sans) opener' getwindowname %@ 2>/dev/null || true)
   [ -n "$found" ] && break
   sleep 0.5
 done
@@ -230,10 +239,10 @@ start example/.bg.json
 sleep 2
 close_window
 kill -0 $app 2>/dev/null || fail 'arrière-plan : l’app a quitté'
-[ -z "$(xdotool search --onlyvisible --name '^Fond' 2>/dev/null)" ] || fail 'arrière-plan : la fenêtre est restée affichée'
+[ -z "$(xsearch --onlyvisible --name '^Fond' 2>/dev/null)" ] || fail 'arrière-plan : la fenêtre est restée affichée'
 VIGIE_CONFIG=example/.bg.json timeout 10 target/debug/vigie-rs >/dev/null 2>&1 || true
 sleep 1
-[ -n "$(xdotool search --onlyvisible --name '^Fond' 2>/dev/null)" ] || fail 'arrière-plan : la fenêtre n’est pas revenue'
+[ -n "$(xsearch --onlyvisible --name '^Fond' 2>/dev/null)" ] || fail 'arrière-plan : la fenêtre n’est pas revenue'
 stop
 rm -f example/.bg.json
 echo 'ok : arrière-plan (fermer cache la fenêtre, un second lancement la réaffiche)'
@@ -308,7 +317,7 @@ stop
 grep -q '"last_service": "hors-total"' example/.dernier.json || fail 'dernier service non enregistré'
 start example/.dernier.json
 sleep 3
-xdotool search --name 'Hors total' >/dev/null || fail 'Vigie ne rouvre pas le dernier service affiché'
+xsearch --name 'Hors total' >/dev/null || fail 'Vigie ne rouvre pas le dernier service affiché'
 stop
 rm -f example/.dernier.json
 echo 'ok : réouverture sur le dernier service affiché'
@@ -403,7 +412,7 @@ sleep 1
 xdotool mousemove 628 494 click 1 # Inspecter, dernière entrée du menu
 found=
 for _ in $(seq 20); do
-  found=$(xdotool search --name '^(Inspecteur|Inspector) — Inspection' 2>/dev/null || true)
+  found=$(xsearch --name '^(Inspecteur|Inspector) — Inspection' 2>/dev/null || true)
   [ -n "$found" ] && break
   sleep 0.5
 done
@@ -421,7 +430,7 @@ printf '{"services": [{"id": "pk", "name": "Passkey", "url": "http://localhost:8
 start example/.passkey.json
 found=
 for _ in $(seq 20); do
-  found=$(xdotool search --name '^(Clé de sécurité|Security key)$' 2>/dev/null | head -1 || true)
+  found=$(xsearch --name '^(Clé de sécurité|Security key)$' 2>/dev/null | head -1 || true)
   [ -n "$found" ] && break
   sleep 0.5
 done
@@ -438,7 +447,7 @@ wait_log 'console : PASSKEY page fin' || fail 'clé de sécurité : demande de l
 wait_log 'console : PASSKEY cadre fin' || fail 'clé de sécurité : demande du cadre restée en attente'
 grep -q 'PASSKEY .* fin AbortError' "$log" || fail 'clé de sécurité : Échap n’a annulé aucune demande'
 sleep 1
-[ -z "$(xdotool search --name '^(Clé de sécurité|Security key)$' 2>/dev/null || true)" ] || fail 'clé de sécurité : fenêtre restée ouverte'
+[ -z "$(xsearch --name '^(Clé de sécurité|Security key)$' 2>/dev/null || true)" ] || fail 'clé de sécurité : fenêtre restée ouverte'
 stop
 rm -f example/.passkey.json
 echo 'ok : clé de sécurité (fenêtre dès la demande, Échap ne laisse aucune demande en attente)'
