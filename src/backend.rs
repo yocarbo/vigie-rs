@@ -482,7 +482,7 @@ impl qobject::Backend {
         std::thread::spawn(move || {
             let (kind, version, url, error) = if update::CHANNEL == "source" {
                 match update::source_update() {
-                    Ok(Some(url)) => ("source", String::new(), url, String::new()),
+                    Ok(Some((url, version))) => ("source", version, url, String::new()),
                     Ok(None) => ("none", String::new(), String::new(), String::new()),
                     Err(e) => ("none", String::new(), String::new(), e),
                 }

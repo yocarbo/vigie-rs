@@ -36,6 +36,9 @@ ApplicationWindow {
     }
     onFinishedChanged: {
         app.updateDone = code === 0
+        // Lancée à ta demande : Vigie redémarre de lui-même sur la nouvelle version.
+        if (code === 0 && app.updateByHand)
+            return app.restartVigie()
         app.updateStatus = code === 0 ? t("Mise à jour installée : redémarre Vigie pour l'utiliser.")
             : t("La mise à jour a échoué (code %1) : voir les détails.").arg(code)
         if (code !== 0)

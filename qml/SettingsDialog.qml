@@ -571,7 +571,7 @@ Dialog {
                         }
                         Hint {
                             text: updates.info.channel === "release"
-                                ? dlg.t("Installée depuis une release GitHub.")
+                                ? dlg.t("Installée depuis une version publiée.")
                                     + (updates.info.canInstall ? ""
                                         : " " + dlg.t("Vigie ne peut pas remplacer ses fichiers : il signale les nouvelles versions sans les installer."))
                                 : updates.info.channel === "source"
@@ -589,7 +589,7 @@ Dialog {
                                 visible: !!updates.found && updates.info.canInstall && !dlg.app.updateDone
                                 highlighted: true
                                 text: dlg.app.updateWindow ? dlg.t("Voir la progression") : dlg.t("Installer")
-                                onClicked: dlg.app.installUpdate()
+                                onClicked: dlg.app.installUpdate(true)
                             }
                             Button {
                                 visible: dlg.app.updateDone

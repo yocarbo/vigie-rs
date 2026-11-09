@@ -383,20 +383,24 @@ ApplicationWindow {
             return
         }
         const canInstall = JSON.parse(Backend.versionInfo()).canInstall
-        updateStatus = kind === "source"
-            ? (canInstall ? t("Une nouvelle version de Vigie est disponible.")
-                : t("Une nouvelle version de Vigie est disponible : lance ./vigie-rs update."))
+        // Version de la release, ou de main pour les sources (« 0.4.3+abc1234 » sans changement de version).
+        updateStatus = kind === "source" && !canInstall
+            ? t("Vigie %1 est disponible : lance ./vigie-rs update.").arg(version)
             : t("Vigie %1 est disponible.").arg(version)
         // Recherche automatique (option « installer automatiquement ») : installée sans attendre ;
         // Redémarrer est proposé à la fin.
         if (canInstall && !updateManual)
-            installUpdate()
+            installUpdate(false)
         else if (canInstall)
-            toast.show(updateStatus, t("Installer"), installUpdate)
+            toast.show(updateStatus, t("Installer"), () => installUpdate(true))
         else
             toast.show(updateStatus, t("Voir les changements"), () => Qt.openUrlExternally(url))
     }
-    function installUpdate() {
+    // Installée à ta demande (bouton Installer) : Vigie redémarre de lui-même à la fin ; installée
+    // automatiquement : Redémarrer est seulement proposé, pour ne pas couper un appel.
+    property bool updateByHand: false
+    function installUpdate(byHand) {
+        updateByHand = byHand
         if (updateFound.kind !== "source") {
             updateStatus = t("Installation de Vigie %1…").arg(updateFound.version)
             Backend.installUpdate()
@@ -430,6 +434,8 @@ ApplicationWindow {
             return
         }
         updateDone = true
+        if (updateByHand)
+            return restartVigie()
         updateStatus = t("Mise à jour installée : redémarre Vigie pour l'utiliser.")
         toast.show(updateStatus, t("Redémarrer"), restartVigie)
     }
