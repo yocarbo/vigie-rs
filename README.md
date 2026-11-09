@@ -42,7 +42,7 @@ From the sources:
 ./vigie-rs update      # git pull, rebuild, and reinstall if Vigie is installed in $PREFIX
 ```
 
-A Vigie built by `./vigie-rs` knows its commit and its checkout: once a week, it asks GitHub whether `main` has moved on. If so, **Install** opens a terminal (`x-terminal-emulator`, Konsole, GNOME Terminal or xterm) that runs `./vigie-rs update`, where you follow the build and type the sudo password; then **Restart** relaunches Vigie.
+A Vigie built by `./vigie-rs` knows its commit and its checkout: once a week, it asks GitHub whether `main` has moved on. If so, it installs the new version by itself (or **Install**, after a check by hand, or with the automatic option off): it runs `./vigie-rs update` in the background, without a terminal, and opens a window that shows its current step (the script's `==>` lines) and, on demand, its output (`~/.cache/vigie-rs/update.log`). Closing the window only hides it: the build goes on, even if Vigie is closed. When Vigie is installed in a system folder, the administrator password is asked once, by the system's own window (`pkexec`; `sudo` when the script runs in a terminal). Then **Restart** relaunches Vigie.
 
 From a release: each `vX.Y.Z` tag makes the GitHub Action (`.github/workflows/release.yml`) run the tests, build Vigie in the container and publish `vigie-rs-X.Y.Z-linux-x86_64.tar.gz` with its SHA-256. Extracted into a folder you can write to, Vigie updates itself:
 
@@ -50,7 +50,7 @@ From a release: each `vX.Y.Z` tag makes the GitHub Action (`.github/workflows/re
 tar xzf vigie-rs-X.Y.Z-linux-x86_64.tar.gz --strip-components=1 -C ~/.local   # ~/.local/bin/vigie-rs
 ```
 
-Once a week, it looks at the latest release. When there is a newer one, it offers to install it: it downloads the archive, checks its SHA-256, replaces its files and restarts. The checksum catches a broken download, not a forged release, since it comes from the same place as the archive. The binary uses the system's Qt, so it needs the packages above, with Qt 6.10 or later (Ubuntu 26.04). A release extracted into a folder Vigie cannot write to (`/usr`) only says that a new version is out.
+Once a week, it looks at the latest release. When there is a newer one, it installs it (or offers to, after a check by hand): it downloads the archive, checks its SHA-256 and replaces its files; **Restart** then relaunches Vigie. The checksum catches a broken download, not a forged release, since it comes from the same place as the archive. The binary uses the system's Qt, so it needs the packages above, with Qt 6.10 or later (Ubuntu 26.04). A release extracted into a folder Vigie cannot write to (`/usr`) only says that a new version is out.
 
 Both checks can be turned off, and run by hand, in Settings → Version. To publish a release, set the new version in `Cargo.toml` and merge it into `main`, then push the tag from `main`:
 
@@ -90,7 +90,7 @@ Every change is saved to the configuration file and applied without restarting, 
   - reload the services after the system resumes (detected when the clock jumps by more than the idle delay, 10 minutes by default);
   - hibernation: services with hibernation turned on are unloaded after 1, 5, 10 or 30 minutes without being shown, and can stay unloaded at startup; while unloaded, a service gets no messages;
   - configuration export and import.
-- **Version**: the current version and how it was built (release, or source with its commit), **Check for a new version**, then **Install** and **Restart** when there is one (see [Updating](#updating)), and the weekly check.
+- **Version**: the current version and how it was built (release, or source with its commit), **Check for a new version**, then **Install** and **Restart** when there is one (see [Updating](#updating)), and the option to check for and install updates automatically (once a week, one request to GitHub).
 - **Notifications**: Do not disturb, hide the content of notifications, badges of muted services, two-factor codes (a 4 to 8-digit code in a notification that contains one of the keywords is copied to the clipboard).
 - **Appearance**: theme, icon size, names under icons, disabled services in the sidebar, navigation bar (with the page address; the default, each service can have its own in its editor).
 - **Privacy**: password lock (at startup, on demand, or after N minutes away from the window; only an Argon2 hash is stored), WebRTC IP policy.
@@ -225,7 +225,7 @@ qdbus6 io.github.vigie_rs /io/github/vigie_rs
 - `src/i18n.rs`: English translations of the interface, written in French in the QML (`t("…")`).
 - `src/dbus.rs`: D-Bus interface and desktop notifications (Linux, with zbus).
 - `src/shim.js`, `src/main-world.js`: the `Vigie` object given to recipes, and `window.vigie` in the page.
-- `qml/`: the interface (window, sidebar, web views, settings, editor, security key window).
+- `qml/`: the interface (window, sidebar, web views, settings, editor, security key window, update window).
 - `cpp/app.h`, `src/qtapp.rs`: the `QApplication` (KDE's Qt integration needs widgets) and Qt WebEngine set-up, which cxx-qt-lib does not expose.
 - `src/update.rs`: updates (latest release or `main` on GitHub, download, SHA-256, install, restart).
 - `outils/release.sh`: release build and spell-checker dictionaries, run in the container by `./vigie-rs`.

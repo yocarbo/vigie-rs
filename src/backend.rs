@@ -139,11 +139,16 @@ pub mod qobject {
         #[cxx_name = "installUpdate"]
         fn install_update(self: Pin<&mut Backend>);
 
-        /// Compilé depuis les sources : `./vigie-rs update` dans un terminal ; message d'erreur, vide si
-        /// le terminal est lancé.
+        /// Compilé depuis les sources : `./vigie-rs update` en tâche de fond, suivi par `updateLog` ;
+        /// message d'erreur, vide s'il est lancé.
         #[qinvokable]
         #[cxx_name = "updateFromSource"]
         fn update_from_source(self: &Backend) -> QString;
+
+        /// Sortie de la mise à jour depuis les sources (étapes en lignes « ==> », fin par « ==> code N »).
+        #[qinvokable]
+        #[cxx_name = "updateLog"]
+        fn update_log(self: &Backend) -> QString;
 
         /// Relance Vigie juste après sa fermeture ; message d'erreur, vide si tout va bien.
         #[qinvokable]
@@ -511,6 +516,10 @@ impl qobject::Backend {
 
     pub fn update_from_source(&self) -> QString {
         q(update::update_from_source().err().unwrap_or_default())
+    }
+
+    pub fn update_log(&self) -> QString {
+        q(update::source_log_tail())
     }
 
     pub fn restart(&self) -> QString {
