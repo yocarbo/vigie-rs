@@ -2,285 +2,121 @@
   <img src="assets/io.github.vigie_rs.svg" alt="Vigie logo: an eye on a blue tile" width="128" height="128">
 </p>
 
-<h1 align="center">Vigie (vigie-rs)</h1>
+<h1 align="center">Vigie</h1>
 
-All your messaging apps in one window, in Rust: Qt 6 (Qt Quick Controls) + Qt WebEngine (Chromium), bound with [cxx-qt](https://github.com/KDAB/cxx-qt). Each service runs in its own web view, with its own session. A catalogue of 440 "recipes" knows how to read each service's unread count, apply a dark theme, and so on. Audio and video calls work (WhatsApp, Meet…), since the engine is Chromium.
+<p align="center">All your messaging apps in one window.</p>
 
-It runs on Linux (developed on KDE Plasma); Qt and Qt WebEngine also exist on Windows and macOS, where everything but the D-Bus interface and launch at login should work (not tested yet).
+WhatsApp, Gmail, Google Calendar, Meet, Slack, Telegram, Discord… and 440 other services, side by side in one light app, each with its unread count, its notifications and its own sign-in. Calls work, camera and microphone included. Vigie is a native Linux app, written in Rust and Qt, inspired by [Ferdium](https://github.com/ferdium/ferdium-app).
 
-It is inspired by [Ferdium](https://github.com/ferdium/ferdium-app), and its recipes come from [ferdium-recipes](https://github.com/ferdium/ferdium-recipes): see [Acknowledgements](#acknowledgements).
+<p align="center">
+  <img src="docs/screenshots/video-call.png" alt="A video call in its own Vigie window, in front of the main window with WhatsApp, Calendar, Meet, Gmail, Slack, Telegram and Wikipedia in the sidebar" width="800">
+  <br><em>A video call in its own Vigie window, over Meet, WhatsApp, Calendar, Gmail, Slack, Telegram and a custom website.</em>
+</p>
 
-## Running
+<p align="center">
+  <img src="docs/screenshots/calendar-reminders.png" alt="Two Google Calendar reminders in Vigie, each with In 5 min and OK" width="800">
+  <br><em>Calendar reminders, each with "In 5 min" and "OK"; the badge counts them.</em>
+</p>
+
+## What it does
+
+- **No account, no limit**: everything stays on your computer (settings, sign-ins, cache). Vigie needs no account and no server of its own, unlike Franz or Rambox, and you can add as many services as you like.
+- **Unread counts**: a red badge on each service's icon, the total in the window title and the tray icon.
+- **Notifications** on the desktop, with the service's name and logo. A click opens the conversation. Mute them per service, or all at once with Do not disturb.
+- **Calls**: audio and video (WhatsApp, Meet…), in their own Vigie window when the service opens one. Vigie asks before a service uses the microphone or the camera.
+- **Video decoded by the graphics card**, H.265 included, when Vigie is built from the sources: security cameras (UniFi Protect with Enhanced Encoding) play as in a browser.
+- **Security keys** (USB): a window asks you to plug the key in and touch it, then for its PIN if needed.
+- **Google Calendar reminders** shown in Vigie, with "In 5 min" to be reminded again.
+- **Separate sign-ins**: each service has its own, or several share one (Gmail, Calendar and Meet with a single Google sign-in).
+- **Dark mode** for the services that have one.
+- **Lock** with a password, at startup, on demand, or after some time away.
+- **Hibernation**: services you rarely look at can be unloaded to save memory.
+- **Never in the way**: pages that lost the network (on waking up, Wi-Fi connecting) reload by themselves once it's back, and, built from the sources, Vigie never prevents your computer from sleeping.
+- **Updates** found and installed by Vigie itself.
+
+The interface is in French or English (Settings → General).
+
+## Installing
+
+Vigie runs on Linux. It uses the system's Qt 6.10 or later (Ubuntu 26.04):
 
 ```bash
 sudo apt install libqt6webenginequick6 qml6-module-qtwebengine qml6-module-qtwebchannel \
   qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-dialogs \
-  qml6-module-qtquick-effects qml6-module-qt-labs-platform   # once; already there on most KDE Plasma installs
-docker build -t vigie-rs-dev .          # once: the build environment
-./vigie-rs                              # your services: ~/.config/vigie-rs/settings.json
-VIGIE_CONFIG=example/services.json ./vigie-rs   # two local test services (changes are saved there)
+  qml6-module-qtquick-effects qml6-module-qt-labs-platform
 ```
 
-`./vigie-rs` builds the release binary in the container (`outils/release.sh`), copies it to `bin/`, converts the French and English hunspell dictionaries for the spell checker into `dictionaries/`, and runs it on the host. It can be run from anywhere, including through a symlink in `~/.local/bin`. Launching it a second time shows the running instance instead of starting another one.
+### From a release
 
-Services and settings are read from and saved to `~/.config/vigie-rs/settings.json` (`$XDG_CONFIG_HOME` is honoured). A missing file gives an empty app, and everything can be added from the interface.
-
-### Installing
+Download `vigie-rs-X.Y.Z-linux-x86_64.tar.gz` from the [releases](https://github.com/yocarbo/vigie-rs/releases), and extract it into your home folder:
 
 ```bash
-./vigie-rs install     # binary in /usr/bin, recipes in /usr/share/vigie-rs, menu entry and icon (asks for sudo)
-./vigie-rs uninstall   # removes them; settings and sign-ins stay
+tar xzf vigie-rs-X.Y.Z-linux-x86_64.tar.gz --strip-components=1 -C ~/.local   # then run ~/.local/bin/vigie-rs
 ```
 
-`PREFIX=/usr/local ./vigie-rs install` installs under another prefix. Once installed, Vigie is in the applications menu (`io.github.vigie_rs.desktop`), and `vigie-rs` runs from anywhere. The window's icon is built into the binary, so it shows even when Vigie is not installed.
+Installed this way, Vigie updates itself. Release archives use the system's Qt WebEngine: H.265 videos don't play (see below).
 
-### Updating
+### From the sources
 
-From the sources:
+With Docker and git:
 
 ```bash
-./vigie-rs update      # git pull, rebuild, and reinstall if Vigie is installed in $PREFIX
+git clone https://github.com/yocarbo/vigie-rs.git && cd vigie-rs
+docker build -t vigie-rs-dev .   # once: the build environment
+./vigie-rs install               # builds Vigie and installs it in /usr (asks for your password)
 ```
 
-A Vigie built by `./vigie-rs` knows its commit and its checkout: once a week, it asks GitHub whether `main` has moved on. If so, it installs the new version by itself (or **Install**, after a check by hand, or with the automatic option off): it runs `./vigie-rs update` in the background, without a terminal, and opens a window that shows its current step (the script's `==>` lines) and, on demand, its output (`~/.cache/vigie-rs/update.log`). Closing the window only hides it: the build goes on, even if Vigie is closed. When Vigie is installed in a system folder, the administrator password is asked once, by the system's own window (`pkexec`; `sudo` when the script runs in a terminal). Then **Restart** relaunches Vigie.
+Vigie is then in the applications menu. Built this way, it brings its own Qt WebEngine, with video decoding by the graphics card (H.265 included): the first build of it takes several hours, held back so that the computer stays usable, and is redone when Ubuntu updates its own. `./vigie-rs uninstall` removes Vigie; your settings and sign-ins stay.
 
-From a release: each `vX.Y.Z` tag makes the GitHub Action (`.github/workflows/release.yml`) run the tests, build Vigie in the container and publish `vigie-rs-X.Y.Z-linux-x86_64.tar.gz` with its SHA-256. Extracted into a folder you can write to, Vigie updates itself:
+## Getting started
 
-```bash
-tar xzf vigie-rs-X.Y.Z-linux-x86_64.tar.gz --strip-components=1 -C ~/.local   # ~/.local/bin/vigie-rs
-```
+Click **+** at the bottom of the sidebar, search the catalogue (WhatsApp, Gmail, Slack…), or choose "Custom website" for any address. Sign in to the service as in a browser.
 
-Once a week, it looks at the latest release. When there is a newer one, it installs it (or offers to, after a check by hand): it downloads the archive, checks its SHA-256 and replaces its files; **Restart** then relaunches Vigie. The checksum catches a broken download, not a forged release, since it comes from the same place as the archive. The binary uses the system's Qt, so it needs the packages above, with Qt 6.10 or later (Ubuntu 26.04). A release extracted into a folder Vigie cannot write to (`/usr`) only says that a new version is out.
+- **Sidebar**: click an icon to show its service. Hold an icon and drop it onto another to reorder them.
+- **Right-click on an icon**: mute its notifications or sound, open it in its own window, reload it, enable or disable it, edit it.
+- **Right-click in a page**: spelling suggestions, copy, translate the selection, open a link in your browser, and Inspect (the developer tools).
+- **Shortcuts**: Ctrl+R or F5 reloads the current service, Ctrl+W closes the window.
+- **Tray icon**: grey at rest, red with unread messages. Its menu shows or hides the window, turns Do not disturb on or off, locks Vigie, or quits.
 
-Both checks can be turned off, and run by hand, in Settings → Version. To publish a release, set the new version in `Cargo.toml` and merge it into `main`, then push the tag from `main`:
+Vigie opens again on the service you were looking at. Closing the window can keep Vigie running in the background (Settings → General).
 
-```bash
-git tag v0.3.0 && git push origin v0.3.0   # the tag must match the version in Cargo.toml
-```
+### Editing a service
 
-The Action creates the release itself. Don't create it on GitHub's Releases page: with release immutability on, a release published there without its archive can't take one later, its publication step fails, and its tag can't be reused.
-
-## Interface
-
-- **Sidebar**:
-  - each service's icon, in a fixed box (small, normal or large): its recipe's logo (trimmed of its blank margins), otherwise the site's favicon, otherwise its initials; optionally its name underneath;
-  - a red badge for direct unread messages, a dot for indirect ones;
-  - 🔕 or 🔇 when the service's notifications or sound are muted; disabled services greyed out (or hidden);
-  - three buttons at the bottom: reload the current service (⟳, F5 or Ctrl+R), add a service (+), settings (⚙).
-- **Reordering**: hold the left button on an icon and drop it onto another one; it takes that place, and the order is saved.
-- **Right-click on an icon**: toggle Notifications, Sound, "Count in total (tray)" and Hibernation; open in a separate window, reload, enable or disable, edit.
-- **Count in total**: when unchecked, the service keeps its badge in the sidebar, but its unread messages are no longer added to the tray (icon and tooltip), the window title or the D-Bus counters.
-- **Tray**: a grey eye at rest, red with direct unread messages, blue with indirect ones only. Its menu shows or hides the window, toggles Do not disturb, locks Vigie, or quits.
-- **Window title**: the total of unread messages and the current service, for example "(3) WhatsApp — Vigie".
-- **Last service**: Vigie opens again on the service that was shown when it was closed.
-- **Right-click in a page**: spelling suggestions, cut, copy, paste, open or copy a link, copy or save an image, translate the selection, back, forward, reload, and **Inspect**: Chromium's developer tools (elements, console, network…) for that page, in a window of their own.
-- **Navigation bar** (never, always, or per service): back, forward, service home, address, open in the browser.
-- **Ctrl+W** closes the window like its close button.
-- **Ctrl+R** (and F5) reloads the current service. The page no longer gets that key: a service that uses Ctrl+R itself can take another shortcut in its editor, and Settings → General changes the default one. A shortcut is written like `Ctrl+Shift+R` or `Alt+R`.
-
-Every change is saved to the configuration file and applied without restarting, except GPU acceleration and the WebRTC IP policy, read when Vigie starts.
+Click its icon in Settings → Services, or right-click it → Edit:
+- notifications, sound, and whether its unread messages count in the total;
+- **Shared session**: give several services the same name (for example `google` for Gmail, Calendar and Meet) and they share one sign-in;
+- **Navigation bar**: the page's address, back, forward and home, above the service;
+- **New windows**: automatic (sign-in and call windows open in Vigie, other links in your browser), always in your browser, or always in Vigie;
+- dark mode, user agent, hibernation, reload shortcut.
 
 ### Settings
 
-- **Services**: the list. A click opens the editor (name, URL, enabled, notifications, sound, total, hibernation, navigation bar, new windows, shared session, dark mode, user agent, reload shortcut), where the service can also be deleted. **Add** (`+`): catalogue of the 440 services with search, or "Custom website" for any URL.
-- **General**:
-  - launch at login (Linux: `~/.config/autostart`), start minimised, keep running in the background when the window is closed, confirm before quitting (on by default), always show the tray icon;
-  - interface language: system, French or English;
-  - the shortcut that reloads the current service (Ctrl+R by default);
-  - reload the services after the system resumes (detected when the clock jumps by more than the idle delay, 10 minutes by default);
-  - hibernation: services with hibernation turned on are unloaded after 1, 5, 10 or 30 minutes without being shown, and can stay unloaded at startup; while unloaded, a service gets no messages;
-  - configuration export and import.
-- **Version**: the current version and how it was built (release, or source with its commit), **Check for a new version**, then **Install** and **Restart** when there is one (see [Updating](#updating)), and the option to check for and install updates automatically (once a week, one request to GitHub).
-- **Notifications**: Do not disturb, hide the content of notifications, badges of muted services, two-factor codes (a 4 to 8-digit code in a notification that contains one of the keywords is copied to the clipboard).
-- **Appearance**: theme, icon size, names under icons, disabled services in the sidebar, navigation bar (with the page address; the default, each service can have its own in its editor).
-- **Privacy**: password lock (at startup, on demand, or after N minutes away from the window; only an Argon2 hash is stored), WebRTC IP policy.
-- **Advanced**: downloads (into the system's downloads folder by default, `~/Téléchargements` or `~/Downloads`, or into a chosen folder, or ask every time), default user agent and its automatic update, GPU acceleration, spell checking (French and/or English), translator (Google Translate or DeepL, in the browser).
+- **General**: launch at login, start minimised, keep running in the background, language, hibernation, reload after waking up, backup (export and import of your services and settings, without sign-ins).
+- **Version**: the current version, check for a new one, and the option to check for and install updates automatically.
+- **Notifications**: Do not disturb, hide the content of notifications, copy two-factor codes from notifications.
+- **Appearance**: theme, icon size, names under icons, navigation bar.
+- **Privacy**: password lock.
+- **Advanced**: downloads folder, user agent, GPU acceleration, spell checking (French, English), translator.
 
-The lock hides Vigie and the content of notifications; services keep running and their data stays on the disk, protected by disk encryption.
+## Updates
 
-### Notifications and sound
+Once a week, Vigie checks whether a new version is out, and installs it by itself; **Restart** then starts the new one. You can also check by hand in Settings → Version, or turn the automatic updates off there.
 
-- Notification permission is granted to every service; muting is then per service (editor or right-click).
-- On Linux, notifications go straight to the desktop (`org.freedesktop.Notifications`), with the service's name and logo, so they work with or without a tray. Elsewhere they go through the tray.
-- Clicking a notification shows the window on that service and runs the page's `onclick`, which usually opens the conversation.
-- The tray and the `ToggleMute` D-Bus method mute all notifications and sound at once.
+Built from the sources, Vigie fetches the new version, builds it and installs it in a window that shows each step. You can keep using Vigie meanwhile, or close the window: the update carries on. If Vigie is installed in a system folder, the system asks for your password once.
 
-### Microphone and camera
+## Tips
 
-When a service asks for the microphone or the camera (a call, a voice message…), Vigie asks you first: Allow or Deny. The answer holds until Vigie is closed, so a mistaken refusal is not permanent. Other permissions are denied, except notifications.
+- **Google says "This browser or app may not be secure"**: Vigie already presents itself to Google in the way it accepts. After many attempts in a row, Google refuses for a while: wait, then try again. If it keeps refusing, give the service a new session name to start afresh.
+- **Gmail, Calendar and Meet** with one Google sign-in: give them the same session name.
+- **Theme**: after changing Vigie's theme, restart it for the pages to follow. Slack has its own dark theme (Preferences → Themes in Slack).
+- **No tray icon on GNOME**: install the AppIndicator extension. Notifications work without it.
+- **Security keys**: USB keys only; passkeys on a phone or in a password manager don't work in Vigie: cancel, and the site offers another way to sign in.
+- **Where your data is**: settings in `~/.config/vigie-rs/settings.json`, sign-ins in `~/.local/share/vigie-rs/`. Disk encryption protects them while the computer is off.
+- **What Vigie asks the Internet**, besides your services: GitHub once a week for updates, and Google's public list of Chrome versions once a week, so that sites see an up-to-date browser. Both can be turned off.
 
-### Security keys and passkeys
+## For developers
 
-Qt WebEngine shows nothing when a site asks for a security key (WebAuthn): the page just waited, for 3 minutes at least (UniFi seemed stuck after the email address). Vigie opens a "Security key" window as soon as the page, or one of its frames, asks: plug the key in and touch it. The same window then asks for the key's PIN or the account to use, or says why it failed. Cancel, or Escape, ends the request, and the site offers another way to sign in. Only USB keys work: Qt WebEngine has no passkeys on a phone or in a password manager.
-
-### Video
-
-Chromium decodes H.265 (HEVC) only with the graphics card (VA-API), and Ubuntu builds its Qt WebEngine without VA-API: it uses the system's libvpx, and Qt then turns VA-API off. So Vigie brings its own Qt WebEngine, in `qtwebengine/`: Ubuntu's package, same version and patches, rebuilt with the bundled libvpx (`outils/qtwebengine.sh`). With it, videos are decoded by the graphics card, H.265 included (UniFi Protect cameras with Enhanced Encoding). On OpenGL, which Qt uses, Chromium only allows this with the `AcceleratedVideoDecodeLinuxGL` feature, which Vigie turns on unless GPU acceleration is off. Without it, H.264, VP9 and AV1 play, H.265 doesn't.
-
-`./vigie-rs` rebuilds it the first time, then whenever Ubuntu updates its own (security fixes): several hours, held to 8 GB of memory and 1 job so that the machine stays usable, and about 15 GB in the `vigie-rs-qtwebengine` Docker volume. `./vigie-rs install` copies it to `share/vigie-rs/qtwebengine`. The binary looks for its libraries there first (RUNPATH, `build.rs`), and `src/main.rs` then points Qt to its web process, resources and QML module. The rest of Qt still comes from the system, at the same version. If the rebuild fails, or for release archives (built without it), Vigie uses the system's Qt WebEngine.
-
-### Network and sleep
-
-When the network isn't there yet (session start, waking from sleep, Wi-Fi or VPN connecting), Chromium shows its error page (ERR_NETWORK_CHANGED, no Internet, name or server not found) and never goes back to the service. Vigie reloads it 4 times (after 2, 4, 8 and 16 s), then only when NetworkManager says the Internet is back, once per service, a few random seconds apart so that waking up doesn't reload everything at once. It never reloads in a loop, and nothing piles up while the machine sleeps.
-
-Vigie never blocks sleep: its own Qt WebEngine (see Video) is built without Chromium's sleep inhibition, which otherwise keeps the machine awake while a sound plays or a video is on screen (a camera's live view). With the system's Qt WebEngine, Chromium can still block it in those cases.
-
-### New windows
-
-Per-service setting:
-- **Automatic** (default): a window opened by a page as a popup, or on the service's own domain (sign-in, calls…), opens in an app window, with `window.opener` and the service's session; other links open in the browser.
-- **Default browser**, or **App window**, for everything.
-
-The recipe does not run in these windows: it is restricted to the service's domain and to pages without `window.opener`.
-
-"Open in a separate window" moves the service into its own window without reloading the page. Closing that window puts it back in the main window.
-
-### Sessions: isolated by default, shareable
-
-Each service has its own cookies and storage (`~/.local/share/vigie-rs/QtWebEngine/<id>`). Give several services the same session name, for example `google` for Gmail, Calendar and Chat, and they share a single sign-in (`~/.local/share/vigie-rs/QtWebEngine/session-google`): once you sign in to Google in one of them (or in the window Android Messages opens for it), the others still on Google's sign-in page return to their service, signed in. Changing this setting requires signing in again.
-
-Sites see an ordinary, up-to-date Chrome: the "QtWebEngine" mention is removed from the user agent, and its Chrome version is the current stable one. Vigie asks [Google's public version API](https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions) at most once a week (Settings → Advanced, can be turned off), and never presents a version older than its engine's. A service's own user agent, or the default one set in the settings, takes precedence.
-
-Google refuses to sign in QtWebEngine in disguise ("This browser or app may not be secure"): as an up-to-date Chrome, even with matching `Sec-CH-UA` brands, and as Firefox, which Chromium's `Sec-CH-UA` headers contradict. It accepts the engine's own user agent, "QtWebEngine/…" included (reported by the Eclipse browser, November 2026). On every `*.google.com` page and on `accounts.youtube.com`, Vigie presents that one, so Google sees a single identity, and the up-to-date Chrome again once a page elsewhere has loaded. Google also refuses sign-ins after many attempts in a row; waiting a while helps. A session already refused keeps Google's cookies from those visits: give its services a new session name (or delete its folder) to start from scratch.
-
-### Dark mode
-
-When Vigie is dark (Dark theme, or System with a dark desktop):
-- pages see `prefers-color-scheme: dark`, so sites with their own dark theme use it, as in a browser. Chromium reads this at startup: after changing the theme, restart Vigie for the pages to follow;
-- if the service's recipe has a dark theme (`handleDarkMode`, failing that `darkmode.css`), it is applied;
-- otherwise, with the service's "Dark mode" set to "Always", Chromium's automatic dark mode is used.
-
-Slack's recipe has no `darkmode.css`: Ferdium's, written for Slack's former interface, repainted part of the new one in grey over Slack's own dark theme (Preferences → Themes), which Slack keeps per device.
-
-WhatsApp's recipe no longer unregisters the page's service workers when it unloads, as Ferdium's does: in Qt WebEngine the unregistration completes on every reload, and WhatsApp then signs out.
-
-The Light and Dark themes change Vigie's own colours only where Qt lets an app override the desktop's colour scheme; the pages follow them in every case.
-
-### Backup
-
-Settings → General → Backup exports and imports the configuration (services and settings) as JSON, without sign-ins. On import, a recipe not found next to the configuration is looked up by name in the catalogue, so an exported file works on another machine.
-
-Sign-ins (cookies, site storage) stay in `~/.local/share/vigie-rs/`. They are protected by disk encryption (LUKS) while the machine is off.
-
-## Recipes
-
-A recipe teaches Vigie how to read a service. Without one, a site still works ("Custom website"), but without an unread count or a tailored dark theme. Each recipe is a folder in `recipes/`:
-
-| File | Purpose |
-|---|---|
-| `package.json` | service name and default URL (`config.serviceURL`), used by the catalogue |
-| `icon.svg` | sidebar and notification icon |
-| `webview.js` | the core: a script injected into the service's page, called with the `Vigie` object |
-| `service.css`, `darkmode.css` | visual tweaks, and the dark theme when the recipe provides one |
-| `webview-unsafe.js` | rare: a script that needs the page's own variables |
-| `index.js` | settings for the original Electron app, ignored by Vigie |
-
-`webview.js` reads the page every 2 seconds and reports the unread count:
-
-```js
-module.exports = Vigie => {
-  Vigie.loop(() => Vigie.setBadge(document.querySelectorAll('.unread').length));
-};
-```
-
-Recipes run in an isolated JavaScript world (Qt WebEngine's `ApplicationWorld`): they see the page's DOM but not its variables, and the site cannot see them. They talk to Vigie through QWebChannel. They can break when a site changes its markup; the recipe then needs updating.
-
-## Configuration
-
-```json
-{
-  "theme": "system",
-  "services": [
-    { "id": "gmail", "name": "Gmail", "url": "https://mail.google.com", "recipe": "recipes/gmail", "session": "google" },
-    { "id": "wiki", "name": "My wiki", "url": "https://wiki.example.org", "dark_mode": true }
-  ]
-}
-```
-
-- `id`: letters, digits, `-`, `_`; it is also the name of the data folder. A duplicate id is ignored.
-- `recipe`: relative to the configuration file, otherwise looked up by name in the catalogue.
-- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate`, `nav_bar` (address bar, back, forward, home; absent: the Appearance setting), `reload_shortcut` (absent: the default one).
-- At the top level, next to `theme` and `services`: the settings of the Settings window, for example `quit_without_asking`, `keep_in_background`, `start_minimized`, `show_tray`, `dnd`, `hide_notification_content`, `icon_size`, `language`, `hibernation_minutes`, `download_dir`, `download_ask`, `update_user_agent`, `chrome_major`, `update_check`, `update_checked`, `lock_enabled`, `lock_hash`, `last_service`, `reload_shortcut` (see `qml/Main.qml`, `defaults`). Keys unknown to Rust are kept as they are.
-- The old format, a plain array of services, is still read.
-- The catalogue is read from `recipes/` next to the configuration file, otherwise from the project's `recipes/` (found by walking up from the binary), or from `share/vigie-rs/recipes` once installed (`/usr/share/vigie-rs/recipes`).
-- An unreadable configuration file is never overwritten: Vigie starts empty and saves nothing.
-
-Environment variables: `VIGIE_CONFIG` (configuration file, default `~/.config/vigie-rs/settings.json`), `VIGIE_CONSOLE=1` (JS console of pages and recipes), `VIGIE_OFFLINE=1` (no automatic Chrome version or update check, used by the tests).
-
-## D-Bus (Linux)
-
-The `io.github.vigie_rs.Vigie` interface is published on `/io/github/vigie_rs`, under the application's name (`io.github.vigie_rs`), which also makes Vigie single-instance. It provides:
-- the properties `UnreadDirectMessageCount`, `UnreadIndirectMessageCount`, `UnreadServices` and `Muted`;
-- the methods `ToggleWindow`, `Activate`, `ToggleMute` and `ToggleToTalk`.
-
-```bash
-qdbus6 io.github.vigie_rs /io/github/vigie_rs
-```
-
-## Code
-
-- `src/main.rs`: single instance, Chromium settings read at startup (GPU, WebRTC, dictionaries), window icon, loads `qml/Main.qml`.
-- `src/backend.rs`: the `Backend` object exposed to QML (configuration, recipes, icons, desktop), exchanging JSON.
-- `src/config.rs`, `src/recipes.rs`, `src/icons.rs`: configuration file, recipe scripts, trimmed logos.
-- `src/i18n.rs`: English translations of the interface, written in French in the QML (`t("…")`).
-- `src/dbus.rs`: D-Bus interface and desktop notifications (Linux, with zbus).
-- `src/shim.js`, `src/main-world.js`: the `Vigie` object given to recipes, and `window.vigie` in the page.
-- `qml/`: the interface (window, sidebar, web views, settings, editor, security key window, update window).
-- `cpp/app.h`, `src/qtapp.rs`: the `QApplication` (KDE's Qt integration needs widgets) and Qt WebEngine set-up, which cxx-qt-lib does not expose.
-- `src/update.rs`: updates (latest release or `main` on GitHub, download, SHA-256, install, restart).
-- `outils/release.sh`: release build and spell-checker dictionaries, run in the container by `./vigie-rs`.
-- `outils/qtwebengine.sh`: Vigie's own Qt WebEngine, with VA-API and without sleep inhibition (see Video, Network and sleep), rebuilt in the container by `./vigie-rs`.
-- `outils/package.sh`, `.github/workflows/release.yml`: release archive, built and published for each `v*` tag.
-
-## Building and testing (Docker)
-
-```bash
-docker build -t vigie-rs-dev .
-docker run --rm -v "$PWD":/app -v vigie-rs-cargo:/usr/local/cargo/registry -v vigie-rs-target:/app/target vigie-rs-dev
-```
-
-The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `test/run.sh` runs:
-- the Node test of the shim: badge, CSS, domain restriction, dark mode;
-- `cargo test`: configuration (settings unknown to Rust kept), domains, trimmed logos, file URLs, password hash, Chrome user agent, versions and the install of a release archive (checksum, files replaced), and an English translation for every `t("…")` text of the QML;
-- `test/e2e.sh`, which runs the app under Xvfb and D-Bus and checks:
-  - that the badge comes through from the recipe, the D-Bus counters and `ToggleMute`, a service excluded from the total, the window title, and that a second launch exits;
-  - sessions: a cookie set by a service is seen by a service in the same session, and never by an isolated one;
-  - notifications: a `Notify` call goes out for the active service, and none for the muted one;
-  - windows: a `window.open` after a click opens an app window, with `window.opener`;
-  - drag and drop: the first icon dropped onto the second takes its place, and the new order is saved;
-  - closing (Ctrl+W): it asks first, Cancel keeps the app, Quit closes it, and it closes at once when the option is off;
-  - microphone (Chromium's fake device): a page asks for it, Allow gives it, Deny refuses it;
-  - downloads: into the chosen folder, into the default one, and through the "save as" dialog when asking is on;
-  - keep in background: closing hides the window without quitting, and a second launch shows it again;
-  - Do not disturb is saved, the content of notifications can be hidden, a disabled service is not loaded, a two-factor code from a notification is copied, and the password lock opens only with the right password;
-  - last service: the service shown when Vigie closes is the one shown when it starts again;
-  - Google sign-in (`*.google.com` served locally): the engine's user agent on every request, then the Chrome one again; with three services sharing a session, signing in to Gmail brings the other two back to their service, signed in;
-  - dark theme: a page sees `prefers-color-scheme: dark`, and notification permission is already granted when it loads;
-  - reload: Ctrl+R reloads the current service, its service worker kept (WhatsApp recipe); a service with its own shortcut ignores Ctrl+R and reloads with its own;
-  - inspector: Inspect, in a page's right-click menu, opens Chromium's developer tools in a window, without crashing Vigie;
-  - security key: a WebAuthn request, from the page or a frame, opens the "Security key" window; Escape leaves no request pending;
-  - network: a page left on Chromium's error page at startup reloads by itself once its server answers;
-  - navigation bar: a service with its own `nav_bar` shows it while the setting says never, and an address typed there opens;
-  - Google Calendar reminders: the recipe's reminder cards (in place of `alert()`) are in view and counted in the badge; "In 5 min" takes its own away, closing clears the count, Escape elsewhere leaves it alone.
-
-The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not.
-
-Compatibility of the 440 recipes. The test runs their code, so it runs without network:
-
-```bash
-docker run --rm --network none -v "$PWD":/app:ro vigie-rs-dev node test/recipes_compat.mjs /app/recipes
-```
-
-Result as of 5 November 2026: 423 of 440 recipes initialise. 16 of the 17 failures come from the recipes themselves: they read `$` or other page variables, unreachable from the isolated world, or have a bug. The only gap on Vigie's side is `Vigie.ipcRenderer` (tweetdeck).
-
-## Not done yet
-
-`ToggleToTalk`, screen sharing in calls, per-service proxy and HTTP basic auth, `user.js`, workspaces, keyboard reordering, launch at login on Windows and macOS, languages other than French and English. On the recipe side, `setDialogTitle`, `onNotify` and `setAvatarImage` do nothing, and `Vigie.ipcRenderer` does not exist. Windows and macOS builds are not set up, and releases are built for Linux x86_64 only.
-
-## Known limitations
-
-- Tray: shown only when the desktop provides a tray host (KDE Plasma does; GNOME needs the AppIndicator extension). Notifications do not depend on it on Linux.
-- In the test container, Chromium's sandbox is disabled (`QTWEBENGINE_DISABLE_SANDBOX`); it stays on in normal use.
+Building, the code, recipes, tests and releases: see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Acknowledgements
 
@@ -296,6 +132,6 @@ Vigie's own code is released under the MIT licence, see `LICENSE`.
 
 The `recipes/` catalogue is distributed under the MIT licence, © Ferdium Contributors, from [ferdium-recipes](https://github.com/ferdium/ferdium-recipes). Its copyright notice, in `recipes/LICENSE.md`, and the `LICENSE` files inside individual recipes must stay with the files. Exception: `recipes/weekplan` is under Apache-2.0 (see its `LICENSE`).
 
-Vigie's Qt WebEngine (`qtwebengine/`), rebuilt from Ubuntu's `qt6-webengine` source package with one build option and one line of Chromium changed, keeps its licences (LGPL-3 and others, Chromium's included), listed in `qtwebengine/copyright`.
+Vigie's Qt WebEngine (`qtwebengine/`), rebuilt from Ubuntu's `qt6-webengine` source package with two build options and two lines of Chromium changed, keeps its licences (LGPL-3 and others, Chromium's included), listed in `qtwebengine/copyright`.
 
 The spell-checker dictionaries, converted from the hunspell packages of Ubuntu and shipped in the release archives, keep their own licences (French: MPL-2.0; English: SCOWL and WordNet notices), copied next to them in `dictionaries/*.copyright`.
