@@ -100,7 +100,7 @@ Click its icon in Settings → Services, or right-click it → Edit:
 
 ## Updates
 
-Once a week, Vigie checks whether a new version is out, and installs it by itself; **Restart** then starts the new one. You can also check by hand in Settings → Version, or turn the automatic updates off there.
+Once a week, Vigie checks whether a new version is out, and installs it by itself; **Restart** then starts the new one, when it suits you. You can also check by hand in Settings → Version: it tells you which version is available, and after **Install** Vigie restarts on it by itself. The automatic updates can be turned off there too.
 
 Built from the sources, Vigie fetches the new version, builds it and installs it in a window that shows each step. You can keep using Vigie meanwhile, or close the window: the update carries on. If Vigie is installed in a system folder, the system asks for your password once.
 

@@ -83,14 +83,28 @@ pub fn latest_release() -> Result<Option<Release>, String> {
     Ok(Some(Release { version, page, archive, checksum }))
 }
 
-/// Compilé depuis les sources : URL de la comparaison avec `main` si `main` a avancé depuis.
-pub fn source_update() -> Result<Option<String>, String> {
+/// Compilé depuis les sources : si `main` a avancé depuis, l'URL de la comparaison et la version de
+/// `main` (son Cargo.toml), ou, sans changement de version, la version en cours suivie du commit
+/// (« 0.4.3+abc1234 »).
+pub fn source_update() -> Result<Option<(String, String)>, String> {
     if COMMIT.is_empty() {
         return Ok(None);
     }
     let json = get_json(&format!("https://api.github.com/repos/{REPO}/compare/{COMMIT}...main"))?;
-    let ahead = json["status"] == "ahead" || json["status"] == "diverged";
-    Ok(ahead.then(|| json["html_url"].as_str().unwrap_or_default().to_owned()))
+    if json["status"] != "ahead" && json["status"] != "diverged" {
+        return Ok(None);
+    }
+    let url = json["html_url"].as_str().unwrap_or_default().to_owned();
+    let commit = json["commits"].as_array().and_then(|c| c.last()).and_then(|c| c["sha"].as_str()).unwrap_or_default();
+    let version = main_version().filter(|v| v != VERSION);
+    Ok(Some((url, version.unwrap_or_else(|| format!("{VERSION}+{}", &commit[..commit.len().min(7)])))))
+}
+
+/// Version de `main` sur GitHub (ligne `version = "…"` de son Cargo.toml).
+fn main_version() -> Option<String> {
+    let url = format!("https://raw.githubusercontent.com/{REPO}/main/Cargo.toml");
+    let text = agent().get(&url).call().ok()?.into_string().ok()?;
+    text.lines().find_map(|l| Some(l.strip_prefix("version = \"")?.strip_suffix('"')?.to_owned()))
 }
 
 /// Préfixe d'installation : `<préfixe>/bin/vigie-rs`.
