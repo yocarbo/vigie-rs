@@ -63,8 +63,8 @@ node -e "const pages = {
   '/apres': '<script>console.log(\"UA apres \" + navigator.userAgent)</script>',
   '/schema': '<script>console.log(\"SCHEMA \" + matchMedia(\"(prefers-color-scheme: dark)\").matches + \" NOTIF \" + Notification.permission)</script>',
   '/recharge': '<script>localStorage.n = +(localStorage.n || 0) + 1; navigator.serviceWorker.getRegistrations().then(r => { console.log(\"CHARGE \" + localStorage.n + \" SW \" + r.length); return navigator.serviceWorker.register(\"/sw.js\") })</script>',
-  '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page \" + e.name))</script>',
-  '/passkey-cadre': '<script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre \" + e.name))</script>',
+  '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>console.log(\"PASSKEY page demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page fin \" + e.name))</script>',
+  '/passkey-cadre': '<script>console.log(\"PASSKEY cadre demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre fin \" + e.name))</script>',
   '/barre': '<script>console.log(\"BARRE ok\")</script>',
   '/agenda': '<script>const go = () => { if (!String(window.alert).includes(\"vigie-reminder\")) return setTimeout(go, 200); const esc = () => document.dispatchEvent(new KeyboardEvent(\"keydown\", { key: \"Escape\" })); esc(); alert(\"Rappel 1\"); alert(\"Rappel 2\"); const m = document.getElementById(\"franz-modal\"), r = m.querySelector(\".vigie-card\").getBoundingClientRect(); console.log(\"AGENDA \" + getComputedStyle(m).position + \" \" + (r.top >= 0 && r.bottom <= innerHeight)); setTimeout(() => { m.querySelector(\".vigie-snooze\").click(); console.log(\"AGENDA reporte \" + m.querySelectorAll(\".vigie-reminder\").length); }, 1000); setTimeout(esc, 2000); }; go()</script>',
 };
@@ -426,15 +426,22 @@ for _ in $(seq 20); do
   sleep 0.5
 done
 [ -n "$found" ] || fail 'clé de sécurité : fenêtre non ouverte'
+# Le cadre peut se charger après la fenêtre : Échap seulement une fois ses deux demandes lancées
+# (une demande plus tardive rouvrirait la fenêtre, à juste titre).
+wait_log 'console : PASSKEY page demande' || fail 'clé de sécurité : pas de demande de la page'
+wait_log 'console : PASSKEY cadre demande' || fail 'clé de sécurité : pas de demande du cadre'
 sleep 1
 xdotool windowfocus --sync "$found" key Escape
-wait_log 'console : PASSKEY page AbortError' || fail 'clé de sécurité : demande de la page non annulée'
-wait_log 'console : PASSKEY cadre AbortError' || fail 'clé de sécurité : demande du cadre non annulée'
+# Chromium ne mène qu'une demande à la fois : l'autre est annulée (AbortError) ou refusée d'emblée
+# (NotSupportedError), selon laquelle arrive la première. Aucune ne doit rester en attente.
+wait_log 'console : PASSKEY page fin' || fail 'clé de sécurité : demande de la page restée en attente'
+wait_log 'console : PASSKEY cadre fin' || fail 'clé de sécurité : demande du cadre restée en attente'
+grep -q 'PASSKEY .* fin AbortError' "$log" || fail 'clé de sécurité : Échap n’a annulé aucune demande'
 sleep 1
 [ -z "$(xdotool search --name '^(Clé de sécurité|Security key)$' 2>/dev/null || true)" ] || fail 'clé de sécurité : fenêtre restée ouverte'
 stop
 rm -f example/.passkey.json
-echo 'ok : clé de sécurité (fenêtre dès la demande, Échap annule la page et ses cadres)'
+echo 'ok : clé de sécurité (fenêtre dès la demande, Échap ne laisse aucune demande en attente)'
 
 # Réseau absent au démarrage : la page d'erreur de Chromium restait affichée. Le serveur du service
 # n'écoute pas encore (ERR_CONNECTION_REFUSED) ; Vigie recharge seul et la page arrive quand il démarre.
