@@ -14,23 +14,11 @@ module.exports = Vigie => {
       'https://accounts.google.com/AccountChooser?continue=https://calendar.google.com/u/0/';
   }
 
-  Vigie.injectCSS(_path.default.join(__dirname, 'service.css'));
-  // calendar.css is linked rather than passed to Vigie.injectCSS, because
-  // injectCSS fills a <style> element via innerHTML, which calendar.google.com
-  // rejects under `require-trusted-types-for 'script'`. Same approach as the
-  // darkmode.css workaround below.
-  const calendarCssId = 'cssFranzModal';
-  if (!document.querySelector(`#${calendarCssId}`)) {
-    const head = document.querySelectorAll('head')[0];
-    const link = document.createElement('link');
-    link.id = calendarCssId;
-    link.rel = 'stylesheet';
-    link.type = 'text/css';
-    link.href =
-      'https://cdn.statically.io/gh/ferdium/ferdium-recipes/main/recipes/google-calendar/calendar.css';
-    link.media = 'all';
-    head.append(link);
-  }
+  // Style of the reminder window (webview-unsafe.js), from disk: injectCSS sets
+  // textContent, which calendar.google.com's Trusted Types allow. The copy that
+  // was linked from cdn.statically.io loaded but never applied, so reminders
+  // opened below the page, out of sight, and their badge stayed.
+  Vigie.injectCSS(_path.default.join(__dirname, 'calendar.css'));
 
   // Injected from disk: injectJSUnsafe only reads local files, handing the
   // source to webview.executeJavaScript (which page CSP does not apply to).

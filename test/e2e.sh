@@ -66,6 +66,7 @@ node -e "const pages = {
   '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page \" + e.name))</script>',
   '/passkey-cadre': '<script>navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre \" + e.name))</script>',
   '/barre': '<script>console.log(\"BARRE ok\")</script>',
+  '/agenda': '<script>const go = () => { if (!String(window.alert).includes(\"vigie-reminder\")) return setTimeout(go, 200); const esc = () => document.dispatchEvent(new KeyboardEvent(\"keydown\", { key: \"Escape\" })); esc(); alert(\"Rappel 1\"); alert(\"Rappel 2\"); const m = document.getElementById(\"franz-modal\"), r = m.querySelector(\".vigie-card\").getBoundingClientRect(); console.log(\"AGENDA \" + getComputedStyle(m).position + \" \" + (r.top >= 0 && r.bottom <= innerHeight)); setTimeout(() => { m.querySelector(\".vigie-snooze\").click(); console.log(\"AGENDA reporte \" + m.querySelectorAll(\".vigie-reminder\").length); }, 1000); setTimeout(esc, 2000); }; go()</script>',
 };
 require('http').createServer((q, r) => {
   if (q.url === '/connexion') {
@@ -460,3 +461,16 @@ wait_log '[Barre] console : BARRE ok' || fail 'barre de navigation : adresse sai
 stop
 rm -f example/.barre.json
 echo 'ok : barre de navigation propre au service (adresse saisie ouverte)'
+
+# Rappels de Google Agenda (recipe : chaque alert() devient une carte dans la page, comptée dans le
+# badge). Les cartes sont visibles, Échap hors rappel ne fausse pas le compte, « Dans 5 min » retire
+# la sienne, Échap ferme le reste.
+printf '{"services": [{"id": "agenda", "name": "Agenda", "url": "http://localhost:8123/agenda", "recipe": "google-calendar"}]}\n' >example/.agenda.json
+start example/.agenda.json
+wait_log '[Agenda] console : AGENDA fixed true' || fail 'agenda : rappels hors de la vue'
+wait_log '[Agenda] badge 2/0' || fail 'agenda : rappels absents du badge'
+wait_log '[Agenda] console : AGENDA reporte 1' || fail 'agenda : « Dans 5 min » ne retire pas son rappel'
+wait_log '[Agenda] badge 0/0' || fail 'agenda : badge non remis à 0 à la fermeture'
+stop
+rm -f example/.agenda.json
+echo 'ok : rappels de Google Agenda (cartes visibles, « Dans 5 min », badge remis à 0)'
