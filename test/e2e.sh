@@ -75,6 +75,7 @@ node -e "const pages = {
   '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>console.log(\"PASSKEY page demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page fin \" + e.name))</script>',
   '/passkey-cadre': '<script>console.log(\"PASSKEY cadre demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre fin \" + e.name))</script>',
   '/barre': '<script>console.log(\"BARRE ok\")</script>',
+  '/pause': '<script>let n = 0; setInterval(() => console.log(\"TICK \" + ++n), 500)</script>',
   '/agenda': '<script>const go = () => { if (!String(window.alert).includes(\"vigie-reminder\")) return setTimeout(go, 200); const esc = () => document.dispatchEvent(new KeyboardEvent(\"keydown\", { key: \"Escape\" })); esc(); alert(\"Rappel 1\"); alert(\"Rappel 2\"); const m = document.getElementById(\"franz-modal\"), r = m.querySelector(\".vigie-card\").getBoundingClientRect(); console.log(\"AGENDA \" + getComputedStyle(m).position + \" \" + (r.top >= 0 && r.bottom <= innerHeight)); setTimeout(() => { m.querySelector(\".vigie-snooze\").click(); console.log(\"AGENDA reporte \" + m.querySelectorAll(\".vigie-reminder\").length); }, 1000); setTimeout(esc, 2000); }; go()</script>',
 };
 require('http').createServer((q, r) => {
@@ -236,7 +237,9 @@ echo 'ok : téléchargements (dossier choisi, dossier par défaut, emplacement d
 # Arrière-plan : fermer la fenêtre la cache sans quitter ; un second lancement la réaffiche.
 printf '{"keep_in_background": true, "services": [{"id": "bg", "name": "Fond", "url": "about:blank"}]}\n' >example/.bg.json
 start example/.bg.json
-sleep 2
+# Fenêtre sur le service (configuration lue, option comprise) avant de la fermer.
+for _ in $(seq 20); do [ -n "$(xsearch --onlyvisible --name '^Fond')" ] && break; sleep 0.5; done
+sleep 1
 close_window
 kill -0 $app 2>/dev/null || fail 'arrière-plan : l’app a quitté'
 [ -z "$(xsearch --onlyvisible --name '^Fond' 2>/dev/null)" ] || fail 'arrière-plan : la fenêtre est restée affichée'
@@ -490,3 +493,20 @@ wait_log '[Agenda] badge 0/0' || fail 'agenda : badge non remis à 0 à la ferme
 stop
 rm -f example/.agenda.json
 echo 'ok : rappels de Google Agenda (cartes visibles, « Dans 5 min », badge remis à 0)'
+
+# Figer en arrière-plan : chargé caché, le service est gelé 10 s après son chargement (sa page ne
+# compte plus), puis reprend dès qu'il est affiché (clic sur sa première icône).
+printf '{"last_service": "autre", "services": [{"id": "pause", "name": "Pause", "url": "http://localhost:8123/pause", "freeze_background": true}, {"id": "autre", "name": "Autre", "url": "data:text/html,autre"}]}\n' >example/.pause.json
+start example/.pause.json
+wait_log '[Pause] console : TICK 3' || fail 'pause : la page ne s’est pas chargée'
+sleep 13
+ticks() { grep -c '\[Pause\] console : TICK' "$log"; }
+before=$(ticks)
+sleep 3
+[ "$(ticks)" = "$before" ] || fail "pause : la page cachée tourne encore ($before puis $(ticks) messages)"
+xdotool mousemove 32 31 click 1
+sleep 3
+[ "$(ticks)" -gt "$before" ] || fail 'pause : la page affichée n’a pas repris'
+stop
+rm -f example/.pause.json
+echo 'ok : figer en arrière-plan (gelé caché, reprend affiché)'
