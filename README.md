@@ -30,7 +30,7 @@ WhatsApp, Gmail, Google Calendar, Meet, Slack, Telegram, Discord… and 440 othe
 - **Separate sign-ins**: each service has its own, or several share one (Gmail, Calendar and Meet with a single Google sign-in).
 - **Dark mode** for the services that have one.
 - **Lock** with a password, at startup, on demand, or after some time away.
-- **Hibernation**: services you rarely look at can be unloaded to save memory.
+- **Hibernation and freezing**: services you rarely look at can be unloaded to save memory, and a dashboard or security cameras can be frozen in the background to save the processor, picking up at once when shown.
 - **Never in the way**: pages that lost the network (on waking up, Wi-Fi connecting) reload by themselves once it's back, and, built from the sources, Vigie never prevents your computer from sleeping.
 - **Updates** found and installed by Vigie itself.
 
@@ -87,7 +87,8 @@ Click its icon in Settings → Services, or right-click it → Edit:
 - **Shared session**: give several services the same name (for example `google` for Gmail, Calendar and Meet) and they share one sign-in;
 - **Navigation bar**: the page's address, back, forward and home, above the service;
 - **New windows**: automatic (sign-in and call windows open in Vigie, other links in your browser), always in your browser, or always in Vigie;
-- dark mode, user agent, hibernation, reload shortcut.
+- **Hibernation** frees memory: the service is unloaded some minutes after you leave it (Settings → General), and reloads when you come back. **Freeze in the background** frees the processor: the service is frozen as soon as you show another one, and picks up at once, where it was. Neither gets messages meanwhile: keep them for dashboards, cameras or news, not for messaging. Both can be on together;
+- dark mode, user agent, reload shortcut.
 
 ### Settings
 

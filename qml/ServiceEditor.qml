@@ -44,6 +44,7 @@ Page {
         set("mute_sound", !sound.checked)
         set("exclude_from_total", !total.checked)
         set("hibernate", hibernate.checked)
+        set("freeze_background", freezeBackground.checked)
         // Gardé seulement s'il diffère du réglage général, qui reste sinon la référence.
         if (navBar.checked === navBarDefault)
             delete svc.nav_bar
@@ -155,8 +156,29 @@ Page {
             Switch {
                 id: hibernate
                 checked: !!editor.service.hibernate
-                ToolTip.visible: hovered
-                ToolTip.text: editor.t("Le service est déchargé quand il n'est pas affiché depuis un moment (voir Paramètres → Général).")
+            }
+            Label {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+                font.pixelSize: 12
+                text: editor.t("Libère la mémoire : le service est déchargé quelques minutes après l'avoir quitté (délai dans Paramètres → Général), et se recharge quand tu y reviens. Entre-temps, plus de messages ni de notifications.")
+            }
+            Label {
+                text: editor.t("Figer en arrière-plan")
+            }
+            Switch {
+                id: freezeBackground
+                checked: !!editor.service.freeze_background
+            }
+            Label {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+                font.pixelSize: 12
+                text: editor.t("Libère le processeur : le service est figé dès que tu en affiches un autre (plus de calcul ni de vidéo), et repart aussitôt, au même endroit, quand tu y reviens. Entre-temps, plus de messages ni de notifications : pour des caméras ou un tableau de bord, pas pour une messagerie.")
             }
             Label {
                 text: editor.t("Barre de navigation")

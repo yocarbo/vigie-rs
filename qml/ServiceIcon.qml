@@ -161,6 +161,18 @@ Item {
             checkable: true
             checked: !!cell.svc.hibernate
             onTriggered: cell.app.setFlag(cell.sid, "hibernate", checked)
+            ToolTip.visible: hovered
+            ToolTip.delay: 600
+            ToolTip.text: cell.t("Libère la mémoire : déchargé quelques minutes après l'avoir quitté, rechargé au retour. Entre-temps, plus de messages.")
+        }
+        MenuItem {
+            text: cell.t("Figer en arrière-plan")
+            checkable: true
+            checked: !!cell.svc.freeze_background
+            onTriggered: cell.app.setFlag(cell.sid, "freeze_background", checked)
+            ToolTip.visible: hovered
+            ToolTip.delay: 600
+            ToolTip.text: cell.t("Libère le processeur : figé dès que tu le quittes, repart aussitôt au retour. Entre-temps, plus de messages.")
         }
         MenuSeparator {}
         MenuItem {

@@ -74,7 +74,7 @@ Changes from Ferdium's recipes:
 
 - `id`: letters, digits, `-`, `_`; it is also the name of the data folder. A duplicate id is ignored.
 - `recipe`: relative to the configuration file, otherwise looked up by name in the catalogue.
-- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate`, `nav_bar` (absent: the Appearance setting), `reload_shortcut` (absent: the default one).
+- Optional: `recipe`, `session`, `dark_mode` (absent: automatic), `user_agent` (absent: the default one), `mute_notifications`, `mute_sound`, `exclude_from_total`, `new_windows` (`auto`, `browser`, `internal`), `disabled`, `hibernate` (unloaded after the delay: `Discarded` lifecycle), `freeze_background` (frozen while hidden, 10 s after loading so that the recipe reads its badge: `Frozen` lifecycle), `nav_bar` (absent: the Appearance setting), `reload_shortcut` (absent: the default one).
 - At the top level, next to `theme` and `services`: the settings of the Settings window, for example `quit_without_asking`, `keep_in_background`, `start_minimized`, `show_tray`, `dnd`, `hide_notification_content`, `icon_size`, `language`, `hibernation_minutes`, `download_dir`, `download_ask`, `update_user_agent`, `chrome_major`, `update_check`, `update_checked`, `lock_enabled`, `lock_hash`, `last_service`, `reload_shortcut` (see `qml/Main.qml`, `defaults`). Keys unknown to Rust are kept as they are.
 - The old format, a plain array of services, is still read.
 - The catalogue is read from `recipes/` next to the configuration file, otherwise from the project's `recipes/` (found by walking up from the binary), or from `share/vigie-rs/recipes` once installed.
@@ -141,7 +141,8 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - security key: a WebAuthn request, from the page or a frame, opens the "Security key" window; Escape leaves no request pending;
   - network: a page left on Chromium's error page at startup reloads by itself once its server answers;
   - navigation bar: a service with its own `nav_bar` shows it while the setting says never, and an address typed there opens;
-  - Google Calendar reminders: the recipe's reminder cards (in place of `alert()`) are in view and counted in the badge; "In 5 min" takes its own away, closing clears the count, Escape elsewhere leaves it alone.
+  - Google Calendar reminders: the recipe's reminder cards (in place of `alert()`) are in view and counted in the badge; "In 5 min" takes its own away, closing clears the count, Escape elsewhere leaves it alone;
+  - freeze in the background: a service loaded hidden stops running 10 s after loading, and runs again once shown.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not. In the test container, Chromium's sandbox is disabled (`QTWEBENGINE_DISABLE_SANDBOX`); it stays on in normal use.
 

@@ -49,8 +49,25 @@ Item {
         else
             lastShown = Date.now()
     }
+    // Figer en arrière-plan (option du service) : la page est gelée, sans calcul, vidéo ni message (ni
+    // notification), et reprend aussitôt affichée, sans recharger. Qt ne gèle qu'une vue cachée ;
+    // gelée seulement une fois chargée, pour garder son badge.
+    readonly property bool paused: !visible && !detachedWindow && !!svc.freeze_background
+    onPausedChanged: applyPause()
+    function applyPause() {
+        if (paused && web.lifecycleState === WebEngineView.LifecycleState.Active && !web.loading && !pendingUrl)
+            web.lifecycleState = WebEngineView.LifecycleState.Frozen
+        else if (!paused && web.lifecycleState === WebEngineView.LifecycleState.Frozen)
+            web.lifecycleState = WebEngineView.LifecycleState.Active
+    }
+    // Chargé caché (au démarrage, ou rechargé) : gelé une fois que sa recipe a lu son badge.
+    Timer {
+        id: pauseAfterLoad
+        interval: 10000
+        onTriggered: view.applyPause()
+    }
     function maybeHibernate(now, minutes) {
-        if (!visible && !detachedWindow && svc.hibernate && web.lifecycleState === WebEngineView.LifecycleState.Active
+        if (!visible && !detachedWindow && svc.hibernate && web.lifecycleState !== WebEngineView.LifecycleState.Discarded
                 && now - lastShown > minutes * 60000) {
             console.log(`[${svc.name}] veille prolongée`)
             web.lifecycleState = WebEngineView.LifecycleState.Discarded
@@ -246,6 +263,7 @@ Item {
                         retry.failed = false
                         retry.tries = 0
                         view.app.googlePageLoaded(view.svc, web, info.url)
+                        pauseAfterLoad.restart()
                     } else if (info.status === WebEngineLoadingInfo.LoadFailedStatus
                                && [21, 102, 104, 105, 106, 109, 118, 137].includes(Math.abs(info.errorCode))) {
                         retry.failed = true
