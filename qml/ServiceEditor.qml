@@ -68,34 +68,78 @@ Page {
         done()
     }
 
-    header: ToolBar {
-        RowLayout {
-            anchors.fill: parent
-            ToolButton {
-                text: "←"
-                font.pixelSize: 18
-                onClicked: editor.back()
-            }
-            Label {
-                text: editor.isNew ? editor.t("Ajouter un service") : editor.t("Modifier %1").arg(editor.service.name)
-                font.bold: true
-                Layout.fillWidth: true
-            }
-        }
-    }
-
-    ScrollView {
-        anchors.fill: parent
+    // Un onglet : réglages sur deux colonnes, défilant si besoin.
+    component Tab: ScrollView {
+        default property alias content: grid.data
         contentWidth: availableWidth
-
+        // Marges haute et basse comprises, sinon le bas du dernier réglage est coupé.
+        contentHeight: grid.implicitHeight + 24
         GridLayout {
+            id: grid
             width: parent.width - 32
             x: 16
             y: 12
             columns: 2
             columnSpacing: 16
             rowSpacing: 10
+        }
+    }
+    component Hint: Label {
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        opacity: 0.7
+        font.pixelSize: 12
+    }
 
+    header: ColumnLayout {
+        spacing: 0
+        ToolBar {
+            Layout.fillWidth: true
+            RowLayout {
+                anchors.fill: parent
+                ToolButton {
+                    text: "←"
+                    font.pixelSize: 18
+                    onClicked: editor.back()
+                }
+                Label {
+                    text: editor.isNew ? editor.t("Ajouter un service") : editor.t("Modifier %1").arg(editor.service.name)
+                    font.bold: true
+                    Layout.fillWidth: true
+                }
+            }
+        }
+        TabBar {
+            id: tabs
+            Layout.fillWidth: true
+            TabButton {
+                text: editor.t("Général")
+            }
+            TabButton {
+                text: editor.t("Notifications")
+            }
+            TabButton {
+                text: editor.t("Apparence")
+            }
+            TabButton {
+                text: editor.t("Micro et caméra")
+            }
+            TabButton {
+                text: editor.t("Ressources")
+            }
+            TabButton {
+                text: editor.t("Avancé")
+            }
+        }
+    }
+
+    // Tous les onglets restent chargés : save() lit chaque champ, même ceux d'un onglet caché.
+    StackLayout {
+        anchors.fill: parent
+        currentIndex: tabs.currentIndex
+
+        Tab {
             Label {
                 text: editor.t("Nom")
             }
@@ -127,9 +171,25 @@ Page {
             Switch {
                 id: enabledSwitch
                 checked: !editor.service.disabled
-                ToolTip.visible: hovered
-                ToolTip.text: editor.t("Désactivé : le service reste dans la liste, mais n'est pas chargé.")
             }
+            Hint {
+                text: editor.t("Désactivé : le service reste dans la liste, mais n'est pas chargé.")
+            }
+            Label {
+                text: editor.t("Session partagée")
+            }
+            TextField {
+                id: session
+                Layout.fillWidth: true
+                text: editor.service.session || ""
+                placeholderText: editor.t("aucune : session isolée")
+            }
+            Hint {
+                text: editor.t("Même nom sur plusieurs services (par exemple « google » pour Gmail, Agenda et Chat) : une seule connexion.")
+            }
+        }
+
+        Tab {
             Label {
                 text: editor.t("Notifications")
             }
@@ -150,58 +210,37 @@ Page {
             Switch {
                 id: total
                 checked: !editor.service.exclude_from_total
-                ToolTip.visible: hovered
-                ToolTip.text: editor.t("Décoché : le badge reste sur l'icône, mais hors du tray, du titre et de D-Bus.")
             }
-            Label {
-                text: editor.t("Veille prolongée")
+            Hint {
+                text: editor.t("Décoché : le badge reste sur l'icône, mais hors du tray, du titre et de D-Bus.")
             }
-            Switch {
-                id: hibernate
-                checked: !!editor.service.hibernate
-            }
-            Label {
-                Layout.columnSpan: 2
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-                font.pixelSize: 12
-                text: editor.t("Libère la mémoire : le service est déchargé quelques minutes après l'avoir quitté (délai dans Paramètres → Général), et se recharge quand tu y reviens. Entre-temps, plus de messages ni de notifications.")
-            }
-            Label {
-                text: editor.t("Figer en arrière-plan")
-            }
-            Switch {
-                id: freezeBackground
-                checked: !!editor.service.freeze_background
-            }
-            Label {
-                Layout.columnSpan: 2
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-                font.pixelSize: 12
-                text: editor.t("Libère le processeur : le service est figé dès que tu en affiches un autre (plus de calcul ni de vidéo), et repart aussitôt, au même endroit, quand tu y reviens. Entre-temps, plus de messages ni de notifications : pour des caméras ou un tableau de bord, pas pour une messagerie.")
-            }
+        }
+
+        Tab {
             Label {
                 text: editor.t("Barre de navigation")
             }
             Switch {
                 id: navBar
                 checked: typeof editor.service.nav_bar === "boolean" ? editor.service.nav_bar : editor.navBarDefault
-                ToolTip.visible: hovered
-                ToolTip.text: editor.t("Adresse de la page, précédent, suivant et accueil, au-dessus du service. Par défaut : selon Paramètres → Apparence.")
+            }
+            Hint {
+                text: editor.t("Adresse de la page, précédent, suivant et accueil, au-dessus du service. Par défaut : selon Paramètres → Apparence.")
             }
             Label {
-                text: editor.t("Nouvelles fenêtres")
+                text: editor.t("Mode sombre")
             }
             ComboBox {
-                id: newWindows
+                id: darkMode
                 Layout.fillWidth: true
-                model: [editor.t("Automatique"), editor.t("Navigateur par défaut"), editor.t("Fenêtre de l'app")]
-                currentIndex: Math.max(0, ["auto", "browser", "internal"].indexOf(editor.service.new_windows || "auto"))
+                model: [editor.t("Automatique"), editor.t("Toujours (en thème sombre)"), editor.t("Jamais")]
+                currentIndex: editor.service.dark_mode === undefined || editor.service.dark_mode === null ? 0
+                    : editor.service.dark_mode ? 1 : 2
             }
-            // Réponses retenues aux questions de Vigie, une par périphérique ; « Demander » l'oublie.
+        }
+
+        // Réponses retenues aux questions de Vigie, une par périphérique ; « Demander » l'oublie.
+        Tab {
             Label {
                 text: editor.t("Micro")
             }
@@ -220,26 +259,43 @@ Page {
                 model: [editor.t("Demander"), editor.t("Autoriser"), editor.t("Refuser")]
                 currentIndex: Math.max(0, ["", "allow", "deny"].indexOf(editor.service.camera || editor.service.media || ""))
             }
-            Label {
-                text: editor.t("Session partagée")
+            Hint {
+                text: editor.t("Demander : Vigie pose la question la prochaine fois que le service veut s'en servir, et retient ta réponse.")
             }
-            TextField {
-                id: session
-                Layout.fillWidth: true
-                text: editor.service.session || ""
-                placeholderText: editor.t("aucune : session isolée")
-                ToolTip.visible: hovered
-                ToolTip.text: editor.t("Même nom sur plusieurs services (par exemple « google » pour Gmail, Agenda et Chat) : une seule connexion.")
+        }
+
+        Tab {
+            Label {
+                text: editor.t("Veille prolongée")
+            }
+            Switch {
+                id: hibernate
+                checked: !!editor.service.hibernate
+            }
+            Hint {
+                text: editor.t("Libère la mémoire : le service est déchargé quelques minutes après l'avoir quitté (délai dans Paramètres → Général), et se recharge quand tu y reviens. Entre-temps, plus de messages ni de notifications.")
             }
             Label {
-                text: editor.t("Mode sombre")
+                text: editor.t("Figer en arrière-plan")
+            }
+            Switch {
+                id: freezeBackground
+                checked: !!editor.service.freeze_background
+            }
+            Hint {
+                text: editor.t("Libère le processeur : le service est figé dès que tu en affiches un autre (plus de calcul ni de vidéo), et repart aussitôt, au même endroit, quand tu y reviens. Entre-temps, plus de messages ni de notifications : pour des caméras ou un tableau de bord, pas pour une messagerie.")
+            }
+        }
+
+        Tab {
+            Label {
+                text: editor.t("Nouvelles fenêtres")
             }
             ComboBox {
-                id: darkMode
+                id: newWindows
                 Layout.fillWidth: true
-                model: [editor.t("Automatique"), editor.t("Toujours (en thème sombre)"), editor.t("Jamais")]
-                currentIndex: editor.service.dark_mode === undefined || editor.service.dark_mode === null ? 0
-                    : editor.service.dark_mode ? 1 : 2
+                model: [editor.t("Automatique"), editor.t("Navigateur par défaut"), editor.t("Fenêtre de l'app")]
+                currentIndex: Math.max(0, ["auto", "browser", "internal"].indexOf(editor.service.new_windows || "auto"))
             }
             Label {
                 text: editor.t("User-agent")

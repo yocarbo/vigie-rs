@@ -82,7 +82,7 @@ Vigie opens again on the service you were looking at. Closing the window can kee
 
 ### Editing a service
 
-Click its icon in Settings → Services, or right-click it → Edit:
+Click its icon in Settings → Services, or right-click it → Edit. Its options are grouped in tabs (General, Notifications, Appearance, Microphone and camera, Resources, Advanced):
 - notifications, sound, and whether its unread messages count in the total;
 - **Shared session**: give several services the same name (for example `google` for Gmail, Calendar and Meet) and they share one sign-in;
 - **Navigation bar**: the page's address, back, forward and home, above the service;
