@@ -45,6 +45,9 @@ Page {
         set("exclude_from_total", !total.checked)
         set("hibernate", hibernate.checked)
         set("freeze_background", freezeBackground.checked)
+        set("microphone", ["", "allow", "deny"][microphone.currentIndex])
+        set("camera", ["", "allow", "deny"][camera.currentIndex])
+        delete svc.media
         // Gardé seulement s'il diffère du réglage général, qui reste sinon la référence.
         if (navBar.checked === navBarDefault)
             delete svc.nav_bar
@@ -197,6 +200,25 @@ Page {
                 Layout.fillWidth: true
                 model: [editor.t("Automatique"), editor.t("Navigateur par défaut"), editor.t("Fenêtre de l'app")]
                 currentIndex: Math.max(0, ["auto", "browser", "internal"].indexOf(editor.service.new_windows || "auto"))
+            }
+            // Réponses retenues aux questions de Vigie, une par périphérique ; « Demander » l'oublie.
+            Label {
+                text: editor.t("Micro")
+            }
+            ComboBox {
+                id: microphone
+                Layout.fillWidth: true
+                model: [editor.t("Demander"), editor.t("Autoriser"), editor.t("Refuser")]
+                currentIndex: Math.max(0, ["", "allow", "deny"].indexOf(editor.service.microphone || editor.service.media || ""))
+            }
+            Label {
+                text: editor.t("Caméra")
+            }
+            ComboBox {
+                id: camera
+                Layout.fillWidth: true
+                model: [editor.t("Demander"), editor.t("Autoriser"), editor.t("Refuser")]
+                currentIndex: Math.max(0, ["", "allow", "deny"].indexOf(editor.service.camera || editor.service.media || ""))
             }
             Label {
                 text: editor.t("Session partagée")

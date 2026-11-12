@@ -60,6 +60,16 @@ Item {
         else if (!paused && web.lifecycleState === WebEngineView.LifecycleState.Frozen)
             web.lifecycleState = WebEngineView.LifecycleState.Active
     }
+    // Micro et caméra retenus pour le service, chacun le sien (« allow », « deny », ou rien) : la page les
+    // voit aussitôt (voir mediaScript), sans attendre un rechargement.
+    readonly property string mediaJson: JSON.stringify({
+        microphone: svc.microphone || svc.media || "",
+        camera: svc.camera || svc.media || "",
+    })
+    onMediaJsonChanged: {
+        installScripts()
+        web.runJavaScript(`window.__vigieSetMedia && window.__vigieSetMedia(${mediaJson})`)
+    }
     // Chargé caché (au démarrage, ou rechargé) : gelé une fois que sa recipe a lu son badge.
     Timer {
         id: pauseAfterLoad
@@ -114,7 +124,83 @@ Item {
             s[k] = props[k]
         return s
     }
-    // Monde de la page : window.vigie. Monde isolé : QWebChannel puis la recipe (absente si aucune).
+    // Micro et caméra : Qt ne les accorde qu'à la page qui les demande (la fenêtre d'appel de Slack), pas
+    // au site comme Chrome. Or Slack, dans sa page principale, lit l'état (navigator.permissions) et la
+    // liste des périphériques, que Chromium rend sans identifiants ni noms à une page qui ne les a pas
+    // eus : Slack n'y trouvait aucun micro. Avec les réponses retenues par Vigie :
+    // - l'état rendu est « accordé » ou « refusé », tenu à jour (Slack s'abonne à son « change ») ;
+    // - un périphérique autorisé est obtenu un instant par la page affichée (coupé aussitôt, sans
+    //   question puisque la réponse est retenue), et la liste devient complète, comme dans Chrome.
+    readonly property string mediaScript: `(() => {
+        window.__vigieMedia = ${mediaJson}
+        const p = navigator.permissions
+        const md = navigator.mediaDevices
+        if (!p || !md) return
+        const query = p.query.bind(p)
+        const enumerate = md.enumerateDevices.bind(md)
+        const gum = md.getUserMedia.bind(md)
+        // Un état par nom, réutilisé (Slack interroge en boucle).
+        const statuses = {}
+        const stateOf = (name, native) => {
+            const m = window.__vigieMedia[name]
+            return m === 'allow' ? 'granted' : m === 'deny' ? 'denied' : native
+        }
+        const update = s => {
+            const state = stateOf(s.name, s.native)
+            if (state === s.state) return
+            s.state = state
+            s.dispatchEvent(new Event('change'))
+            if (typeof s.onchange === 'function') s.onchange(new Event('change'))
+        }
+        p.query = d => {
+            if (!d || (d.name !== 'microphone' && d.name !== 'camera')) return query(d)
+            return query(d).then(n => n.state, () => 'prompt').then(native => {
+                let s = statuses[d.name]
+                if (!s) {
+                    s = statuses[d.name] = new EventTarget()
+                    s.name = d.name
+                    s.onchange = null
+                    s.state = stateOf(d.name, native)
+                }
+                s.native = native
+                update(s)
+                return s
+            })
+        }
+        // Périphériques autorisés que la page n'a pas encore eus : obtenus puis coupés aussitôt.
+        let warmed = {}
+        const warm = async list => {
+            const need = {}
+            const missing = kind => list.some(d => d.kind === kind && !d.deviceId)
+            if (window.__vigieMedia.microphone === 'allow' && !warmed.audio && missing('audioinput')) need.audio = true
+            if (window.__vigieMedia.camera === 'allow' && !warmed.video && missing('videoinput')) need.video = true
+            if (!(need.audio || need.video) || document.visibilityState !== 'visible') return false
+            warmed = { ...warmed, ...need }
+            try {
+                const s = await gum(need)
+                s.getTracks().forEach(t => t.stop())
+                return true
+            } catch (e) {
+                return false
+            }
+        }
+        md.enumerateDevices = async () => {
+            const list = await enumerate()
+            return await warm(list) ? enumerate() : list
+        }
+        // Affichée plus tard, ou réponse donnée entre-temps : la page relit la liste (devicechange).
+        const refresh = async () => {
+            if (await warm(await enumerate())) md.dispatchEvent(new Event('devicechange'))
+        }
+        document.addEventListener('visibilitychange', refresh)
+        window.__vigieSetMedia = m => {
+            window.__vigieMedia = m
+            Object.values(statuses).forEach(update)
+            refresh()
+        }
+    })()`
+    // Monde de la page : window.vigie, micro et caméra. Monde isolé : QWebChannel puis la recipe
+    // (absente si aucune).
     function installScripts() {
         web.userScripts.clear()
         web.userScripts.insert(script("vigie-page", {
@@ -122,6 +208,12 @@ Item {
             injectionPoint: WebEngineScript.DocumentCreation,
             worldId: WebEngineScript.MainWorld,
             runsOnSubFrames: false,
+        }))
+        web.userScripts.insert(script("vigie-media", {
+            sourceCode: mediaScript,
+            injectionPoint: WebEngineScript.DocumentCreation,
+            worldId: WebEngineScript.MainWorld,
+            runsOnSubFrames: true,
         }))
         const code = Backend.recipeScript(json, darkFor)
         if (!code)
@@ -245,7 +337,7 @@ Item {
                 settings.forceDarkMode: view.recipeForcesDark || (view.darkFor && !view.info.recipeDark)
                 settings.focusOnNavigationEnabled: false
                 onIconChanged: view.app.setFavicon(view.sid, icon)
-                onPermissionRequested: permission => view.app.askPermission(view.svc, permission)
+                onPermissionRequested: permission => view.app.askPermission(view.svc, permission, web.Window.window)
                 onNewWindowRequested: request => view.app.newWindow(view.svc, web.profile, request)
                 property var webAuthWindow: null
                 onWebAuthUxRequested: request => view.app.webAuth(web, request)

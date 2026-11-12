@@ -75,6 +75,8 @@ node -e "const pages = {
   '/passkey': '<iframe src=\"/passkey-cadre\"></iframe><script>console.log(\"PASSKEY page demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY page fin \" + e.name))</script>',
   '/passkey-cadre': '<script>console.log(\"PASSKEY cadre demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre fin \" + e.name))</script>',
   '/barre': '<script>console.log(\"BARRE ok\")</script>',
+  '/appel': '<button style=\"position:fixed;inset:0;width:100%;height:100%\" onclick=\"navigator.permissions.query({ name: \'microphone\' }).then(s => { console.log(\'PERM \' + s.state); s.onchange = () => { console.log(\'PERMCHANGE \' + s.state); navigator.mediaDevices.enumerateDevices().then(l => console.log(\'DEVICES \' + (l.some(d => d.kind === \'audioinput\' && d.deviceId) ? \'ok\' : \'sans-identifiant\'))) } }); window.open(\'/micro-direct\', \'appel\', \'width=600,height=400\')\">appel</button>',
+  '/micro-direct': '<script>navigator.mediaDevices.getUserMedia({ audio: true }).then(() => console.log(\"MICRO ok\"), e => console.log(\"MICRO \" + e.name))</script>',
   '/pause': '<script>let n = 0; setInterval(() => console.log(\"TICK \" + ++n), 500)</script>',
   '/agenda': '<script>const go = () => { if (!String(window.alert).includes(\"vigie-reminder\")) return setTimeout(go, 200); const esc = () => document.dispatchEvent(new KeyboardEvent(\"keydown\", { key: \"Escape\" })); esc(); alert(\"Rappel 1\"); alert(\"Rappel 2\"); const m = document.getElementById(\"franz-modal\"), r = m.querySelector(\".vigie-card\").getBoundingClientRect(); console.log(\"AGENDA \" + getComputedStyle(m).position + \" \" + (r.top >= 0 && r.bottom <= innerHeight)); setTimeout(() => { m.querySelector(\".vigie-snooze\").click(); console.log(\"AGENDA reporte \" + m.querySelectorAll(\".vigie-reminder\").length); }, 1000); setTimeout(esc, 2000); }; go()</script>',
 };
@@ -179,27 +181,55 @@ quits || fail 'option désactivée : la fermeture n’a pas quitté l’app'
 rm -f example/.quit.json
 echo 'ok : fermeture (confirmation, Annuler, Quitter, option désactivée)'
 
-# Micro (faux périphérique de Chromium) : la page le demande, l'app pose la question.
-micro() { # $1 : abscisse du bouton du dialogue ; affiche la réponse de la page
+# Micro (faux périphérique de Chromium) : la page le demande (après un clic), Vigie pose la question
+# dans sa propre fenêtre, au-dessus de celle qui demande ; Entrée autorise, Échap refuse.
+# La réponse est retenue pour le service (clé « media ») : plus de question au lancement suivant.
+micro() { # $1 : configuration, $2 : touche (Return, Escape), ou « aucune » (pas de question attendue)
   export VIGIE_CONSOLE=1 QTWEBENGINE_CHROMIUM_FLAGS=--use-fake-device-for-media-stream
-  start example/micro.json
+  start "$1"
   sleep 3
   xdotool mousemove 600 400 click 1
-  sleep 1.5
-  xdotool mousemove "$1" 418 click 1
-  sleep 1.5
+  ask=
+  for _ in $(seq 12); do
+    ask=$(xsearch --onlyvisible --name '(veut utiliser|wants to use)' | head -1)
+    [ -n "$ask" ] && break
+    sleep 0.5
+  done
+  if [ "$2" = aucune ]; then
+    [ -n "$ask" ] && { stop; echo 'MICRO question-reposée'; return; }
+  elif [ -n "$ask" ]; then
+    xdotool windowfocus --sync "$ask" key "$2"
+  fi
+  sleep 2.5
   stop
-  grep -o 'MICRO [A-Za-z]*' "$log" | head -1
+  grep -o 'MICRO [A-Za-z-]*\|PERM [a-z]*' "$log" | sort -u | tr '\n' ' ' | sed 's/ $//'
 }
-got=$(micro 605)
-[ "$got" = 'MICRO ok' ] || fail "micro : Autoriser n’a pas donné le micro (${got:-pas de réponse})"
-got=$(micro 691)
+cp example/micro.json example/.micro.json
+got=$(micro example/.micro.json Return)
+[ "$got" = 'MICRO ok' ] || fail "micro : Autoriser n’a pas donné le micro (${got:-pas de question, ou pas de réponse})"
+grep -q '"microphone": "allow"' example/.micro.json || fail 'micro : Autoriser non retenu pour le service'
+! grep -q '"camera"' example/.micro.json || fail 'micro : la caméra, non demandée, a reçu la réponse du micro'
+got=$(micro example/.micro.json aucune)
+[ "$got" = 'MICRO ok' ] || fail "micro : réponse retenue non appliquée au lancement suivant (${got:-pas de réponse})"
+cp example/micro.json example/.micro.json
+got=$(micro example/.micro.json Escape)
 # Qt WebEngine signale le refus par AbortError (Chromium seul : NotAllowedError).
 case "$got" in
   'MICRO NotAllowedError' | 'MICRO AbortError') ;;
   *) fail "micro : Refuser n’a pas refusé le micro (${got:-pas de réponse})" ;;
 esac
-echo 'ok : micro (demande d’autorisation, Autoriser, Refuser)'
+grep -q '"microphone": "deny"' example/.micro.json || fail 'micro : Refuser non retenu pour le service'
+rm -f example/.micro.json
+# Depuis une fenêtre d'appel (popup, comme Slack) : la question y apparaît, plus derrière ; la page
+# principale, qui avait lu « à demander » et s'est abonnée au changement (comme Slack), apprend que
+# le micro est accordé, et voit le micro dans sa liste de périphériques (avec un identifiant).
+printf '{"services": [{"id": "appel", "name": "Appels", "url": "http://localhost:8123/appel"}]}\n' >example/.appel.json
+got=$(micro example/.appel.json Return)
+rm -f example/.appel.json
+[ "$got" = 'MICRO ok PERM prompt' ] || fail "micro : fenêtre d’appel sans micro (${got:-pas de question, ou pas de réponse})"
+grep -q 'console : PERMCHANGE granted' "$log" || fail 'micro : la page principale n’apprend pas que le micro est accordé'
+grep -q 'console : DEVICES ok' "$log" || fail 'micro : la page principale ne voit pas le micro dans sa liste de périphériques'
+echo 'ok : micro (question dans sa fenêtre, Autoriser, Refuser, réponse retenue, fenêtre d’appel)'
 
 # Téléchargements : dans le dossier choisi ; sans dossier, dans celui du système (ici ~/Downloads,
 # le conteneur n'ayant ni dossier XDG ni ~/Téléchargements) ; sur demande, Vigie demande où

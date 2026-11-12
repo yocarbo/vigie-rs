@@ -23,7 +23,7 @@ WhatsApp, Gmail, Google Calendar, Meet, Slack, Telegram, Discord… and 440 othe
 - **No account, no limit**: everything stays on your computer (settings, sign-ins, cache). Vigie needs no account and no server of its own, unlike Franz or Rambox, and you can add as many services as you like.
 - **Unread counts**: a red badge on each service's icon, the total in the window title and the tray icon.
 - **Notifications** on the desktop, with the service's name and logo. A click opens the conversation. Mute them per service, or all at once with Do not disturb.
-- **Calls**: audio and video (WhatsApp, Meet…), in their own Vigie window when the service opens one. Vigie asks before a service uses the microphone or the camera.
+- **Calls**: audio and video (WhatsApp, Meet, Slack huddles…), in their own Vigie window when the service opens one. Vigie asks before a service uses the microphone or the camera, in a small window over the one asking, and remembers your answer for that service, from one launch to the next (change it in the service's editor).
 - **Video decoded by the graphics card**, H.265 included, when Vigie is built from the sources: security cameras (UniFi Protect with Enhanced Encoding) play as in a browser.
 - **Security keys** (USB): a window asks you to plug the key in and touch it, then for its PIN if needed.
 - **Google Calendar reminders** shown in Vigie, with "In 5 min" to be reminded again.
@@ -88,6 +88,7 @@ Click its icon in Settings → Services, or right-click it → Edit:
 - **Navigation bar**: the page's address, back, forward and home, above the service;
 - **New windows**: automatic (sign-in and call windows open in Vigie, other links in your browser), always in your browser, or always in Vigie;
 - **Hibernation** frees memory: the service is unloaded some minutes after you leave it (Settings → General), and reloads when you come back. **Freeze in the background** frees the processor: the service is frozen as soon as you show another one, and picks up at once, where it was. Neither gets messages meanwhile: keep them for dashboards, cameras or news, not for messaging. Both can be on together;
+- **Microphone** and **Camera**, each its own: ask, allow or deny without asking again;
 - dark mode, user agent, reload shortcut.
 
 ### Settings

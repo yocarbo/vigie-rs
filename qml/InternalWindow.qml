@@ -22,11 +22,15 @@ ApplicationWindow {
         profile: win.profile
         audioMuted: win.app.muted || !!win.service.mute_sound
         onWindowCloseRequested: win.close()
-        onPermissionRequested: permission => win.app.askPermission(win.service, permission)
+        onPermissionRequested: permission => win.app.askPermission(win.service, permission, win)
         onNewWindowRequested: request => win.app.newWindow(win.service, win.profile, request)
         property var webAuthWindow: null
         onWebAuthUxRequested: request => win.app.webAuth(web, request)
-        onJavaScriptConsoleMessage: (level, message) => win.app.webAuthMessage(web, message)
+        onJavaScriptConsoleMessage: (level, message) => {
+            win.app.webAuthMessage(web, message)
+            if (win.app.logConsole)
+                console.log(`[${win.service.name}] console : ${message}`)
+        }
         onNavigationRequested: request => {
             if (request.isMainFrame && win.app.googlePage(win.service, request.url, web))
                 request.reject()
