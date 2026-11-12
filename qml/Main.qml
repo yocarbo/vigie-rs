@@ -243,8 +243,9 @@ ApplicationWindow {
 
     // --- Sessions, badges, notifications, téléchargements -----------------------------------------
 
-    // Profil persistant (Qt 6.9+) ; micro et caméra accordés jusqu'à la fermeture de Vigie seulement,
-    // pour qu'un refus par erreur ne soit pas définitif.
+    // Profil persistant (Qt 6.9+). Qt ne garde pas le micro et la caméra (permissions « transitoires »,
+    // valables pour la seule page qui les a obtenues) : Vigie retient la réponse lui-même, par service
+    // (clé `media`, voir askPermission).
     Component {
         id: profilePrototype
         WebEngineProfilePrototype {
@@ -731,8 +732,44 @@ ApplicationWindow {
         id: internalWindow
         InternalWindow {}
     }
-    // Notifications : accordées (coupées ensuite par service). Micro et caméra : on demande.
-    function askPermission(svc, permission) {
+    // Micro et caméra : les réponses retenues pour le service, chacun la sienne (`microphone`, `camera` :
+    // « allow » ou « deny », d'une session à l'autre). `media` (une seule réponse pour les deux) vient
+    // d'une version de développement.
+    function mediaAnswer(svc, kind) {
+        const s = serviceById(svc.id) || svc
+        return s[kind] || s.media || ""
+    }
+    function mediaKinds(permission) {
+        const T = WebEnginePermission.PermissionType
+        const kinds = []
+        if (permission.permissionType !== T.MediaVideoCapture)
+            kinds.push("microphone")
+        if (permission.permissionType !== T.MediaAudioCapture)
+            kinds.push("camera")
+        return kinds
+    }
+    // Retient la réponse pour ces périphériques (« » : la question reviendra).
+    function setMedia(sid, kinds, answer) {
+        const svc = serviceById(sid)
+        if (!svc)
+            return
+        if (svc.media) {
+            for (const k of ["microphone", "camera"])
+                svc[k] = svc[k] || svc.media
+            delete svc.media
+        }
+        for (const k of kinds) {
+            if (answer)
+                svc[k] = answer
+            else
+                delete svc[k]
+        }
+        updateService(svc)
+    }
+    // Notifications : accordées (coupées ensuite par service). Micro et caméra : selon les réponses
+    // retenues (un refus l'emporte, Qt ne pouvant accorder qu'une partie d'une demande), sinon on
+    // demande, au-dessus de la fenêtre `window` d'où vient la demande, et on retient la réponse.
+    function askPermission(svc, permission, window) {
         const T = WebEnginePermission.PermissionType
         switch (permission.permissionType) {
         case T.Notifications:
@@ -740,9 +777,20 @@ ApplicationWindow {
             break
         case T.MediaAudioCapture:
         case T.MediaVideoCapture:
-        case T.MediaAudioVideoCapture:
-            mediaDialog.ask(svc, permission)
+        case T.MediaAudioVideoCapture: {
+            const answers = mediaKinds(permission).map(k => mediaAnswer(svc, k))
+            const asking = mediaWindows.find(w => w.svc.id === svc.id)
+            if (answers.includes("deny"))
+                permission.deny()
+            else if (answers.every(a => a === "allow"))
+                permission.grant()
+            else if (asking)
+                asking.add(permission)
+            else
+                mediaWindows = mediaWindows.concat(permissionWindow.createObject(root, {
+                    app: root, svc: svc, permission: permission, transientParent: window || root }))
             break
+        }
         default:
             permission.deny()
         }
@@ -1027,43 +1075,11 @@ ApplicationWindow {
         onAccepted: root.quit()
     }
 
-    // Micro et caméra : une demande à la fois, les suivantes attendent.
-    Dialog {
-        id: mediaDialog
-        property var pending: []
-        property var permission: null
-        anchors.centerIn: Overlay.overlay
-        modal: true
-        function ask(svc, p) {
-            pending.push({ svc: svc, permission: p })
-            if (!visible)
-                next()
-        }
-        function next() {
-            const item = pending.shift()
-            if (!item)
-                return
-            const T = WebEnginePermission.PermissionType
-            const what = item.permission.permissionType === T.MediaAudioVideoCapture ? root.t("le micro et la caméra")
-                : item.permission.permissionType === T.MediaVideoCapture ? root.t("la caméra") : root.t("le micro")
-            permission = item.permission
-            title = root.t("%1 veut utiliser %2").arg(item.svc.name).arg(what)
-            open()
-        }
-        footer: DialogButtonBox {
-            Button {
-                text: root.t("Refuser")
-                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
-            }
-            Button {
-                text: root.t("Autoriser")
-                highlighted: true
-                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
-            }
-        }
-        onAccepted: permission.grant()
-        onRejected: permission.deny()
-        onClosed: Qt.callLater(next)
+    // Micro et caméra : une petite fenêtre par service qui demande, au-dessus de la fenêtre qui demande.
+    property var mediaWindows: []
+    Component {
+        id: permissionWindow
+        PermissionWindow {}
     }
 
     // Message bref en bas de la fenêtre (erreurs, confirmations), avec une action facultative.
