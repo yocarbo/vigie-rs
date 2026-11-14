@@ -15,7 +15,6 @@ fn main() {
         "qml/SettingsDialog.qml",
         "qml/ServiceEditor.qml",
         "qml/WebAuthWindow.qml",
-        "qml/UpdateWindow.qml",
         "qml/PermissionWindow.qml",
     ];
     // Qt WebEngine embarqué (outils/qtwebengine.sh), préféré à celui du système s'il est là : à côté

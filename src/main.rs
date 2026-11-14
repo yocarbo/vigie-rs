@@ -80,6 +80,10 @@ fn page_color_scheme(theme: config::Theme) {
 }
 
 fn main() {
+    // Mise à jour dans un dossier système : relancé en administrateur par update::install.
+    if let Some(code) = update::admin_install() {
+        std::process::exit(code);
+    }
     // Déjà lancé : l'instance en cours s'affiche, celle-ci s'arrête.
     #[cfg(target_os = "linux")]
     if !dbus::claim() {

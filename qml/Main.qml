@@ -350,12 +350,12 @@ ApplicationWindow {
         xhr.open("GET", "https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions?pageSize=1")
         xhr.send()
     }
-    // Nouvelle version de Vigie (release GitHub, ou `main` s'il est compilé depuis les sources), au plus
-    // une fois par semaine ; `manual` (bouton des paramètres) : toujours, et dit aussi « à jour ».
+    // Nouvelle version de Vigie (release GitHub), au plus une fois par semaine ; `manual` (bouton des
+    // paramètres) : toujours, et dit aussi « à jour ».
     property string updateStatus: ""
     property bool updateManual: false
-    // Pour l'onglet Version : mise à jour trouvée ({ kind, version, url }), et déjà installée (release)
-    // ou lancée dans un terminal (sources), donc Vigie à redémarrer.
+    // Pour l'onglet Version : mise à jour trouvée ({ kind, version, url }), et déjà installée, donc Vigie
+    // à redémarrer.
     property var updateFound: null
     property bool updateDone: false
     function checkUpdates(manual) {
@@ -384,10 +384,7 @@ ApplicationWindow {
             return
         }
         const canInstall = JSON.parse(Backend.versionInfo()).canInstall
-        // Version de la release, ou de main pour les sources (« 0.4.3+abc1234 » sans changement de version).
-        updateStatus = kind === "source" && !canInstall
-            ? t("Vigie %1 est disponible : lance ./vigie-rs update.").arg(version)
-            : t("Vigie %1 est disponible.").arg(version)
+        updateStatus = t("Vigie %1 est disponible.").arg(version)
         // Recherche automatique (option « installer automatiquement ») : installée sans attendre ;
         // Redémarrer est proposé à la fin.
         if (canInstall && !updateManual)
@@ -402,31 +399,8 @@ ApplicationWindow {
     property bool updateByHand: false
     function installUpdate(byHand) {
         updateByHand = byHand
-        if (updateFound.kind !== "source") {
-            updateStatus = t("Installation de Vigie %1…").arg(updateFound.version)
-            Backend.installUpdate()
-            return
-        }
-        // Déjà lancée : sa fenêtre, cachée, se rouvre.
-        if (updateWindow) {
-            updateWindow.show()
-            updateWindow.raise()
-            return
-        }
-        const failed = Backend.updateFromSource()
-        if (failed) {
-            updateStatus = t("Échec de la mise à jour : %1").arg(failed)
-            toast.show(updateStatus)
-            return
-        }
-        updateStatus = t("Mise à jour en cours…")
-        updateWindow = updateWindowComponent.createObject(root, { app: root })
-    }
-    // Mise à jour depuis les sources en cours, ou finie et pas encore fermée.
-    property var updateWindow: null
-    Component {
-        id: updateWindowComponent
-        UpdateWindow {}
+        updateStatus = t("Installation de Vigie %1…").arg(updateFound.version)
+        Backend.installUpdate()
     }
     function updateInstalled(error) {
         if (error) {

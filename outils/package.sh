@@ -12,6 +12,8 @@ rm -rf dist
 install -D -m 755 bin/vigie-rs "$root/bin/vigie-rs"
 mkdir -p "$root/share/vigie-rs"
 cp -r recipes dictionaries "$root/share/vigie-rs/"
+# Qt WebEngine de Vigie (outils/qtwebengine-get.sh), si la release l'a trouvé : liens gardés.
+if [ -d qtwebengine ]; then cp -a qtwebengine "$root/share/vigie-rs/"; fi
 install -D -m 644 "assets/$app.desktop" "$root/share/applications/$app.desktop"
 install -D -m 644 "assets/$app.svg" "$root/share/icons/hicolor/scalable/apps/$app.svg"
 install -D -m 644 LICENSE README.md -t "$root/share/doc/vigie-rs"

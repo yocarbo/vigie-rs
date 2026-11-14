@@ -1,8 +1,7 @@
-//! Mises à jour de Vigie, selon la façon dont il a été compilé :
-//! - « release » (archive publiée par la GitHub Action) : la dernière release est téléchargée,
-//!   vérifiée (SHA-256) et installée à la place des fichiers actuels ;
-//! - « source » (compilé par ./vigie-rs) : Vigie signale que `main` a avancé sur GitHub, et lance
-//!   `./vigie-rs update` dans un terminal.
+//! Mises à jour de Vigie : la dernière release publiée sur GitHub (archive de la GitHub Action) est
+//! téléchargée, vérifiée (SHA-256) et installée à la place des fichiers actuels, que Vigie vienne d'une
+//! release ou de `./vigie-rs install`. Dans un dossier système, l'installation se fait en administrateur
+//! (pkexec : la fenêtre du système demande le mot de passe).
 use std::{
     fs,
     io::Read,
@@ -83,42 +82,24 @@ pub fn latest_release() -> Result<Option<Release>, String> {
     Ok(Some(Release { version, page, archive, checksum }))
 }
 
-/// Compilé depuis les sources : si `main` a avancé depuis, l'URL de la comparaison et la version de
-/// `main` (son Cargo.toml), ou, sans changement de version, la version en cours suivie du commit
-/// (« 0.4.3+abc1234 »).
-pub fn source_update() -> Result<Option<(String, String)>, String> {
-    if COMMIT.is_empty() {
-        return Ok(None);
-    }
-    let json = get_json(&format!("https://api.github.com/repos/{REPO}/compare/{COMMIT}...main"))?;
-    if json["status"] != "ahead" && json["status"] != "diverged" {
-        return Ok(None);
-    }
-    let url = json["html_url"].as_str().unwrap_or_default().to_owned();
-    let commit = json["commits"].as_array().and_then(|c| c.last()).and_then(|c| c["sha"].as_str()).unwrap_or_default();
-    let version = main_version().filter(|v| v != VERSION);
-    Ok(Some((url, version.unwrap_or_else(|| format!("{VERSION}+{}", &commit[..commit.len().min(7)])))))
-}
-
-/// Version de `main` sur GitHub (ligne `version = "…"` de son Cargo.toml).
-fn main_version() -> Option<String> {
-    let url = format!("https://raw.githubusercontent.com/{REPO}/main/Cargo.toml");
-    let text = agent().get(&url).call().ok()?.into_string().ok()?;
-    text.lines().find_map(|l| Some(l.strip_prefix("version = \"")?.strip_suffix('"')?.to_owned()))
-}
-
 /// Préfixe d'installation : `<préfixe>/bin/vigie-rs`.
 pub fn prefix() -> Option<PathBuf> {
     let exe = exe()?.canonicalize().ok()?;
     Some(exe.parent()?.parent()?.to_path_buf())
 }
 
-/// Vigie peut remplacer ses propres fichiers (pas une installation système en lecture seule).
+/// Vigie peut s'installer par-dessus : compilé par la GitHub Action ou ./vigie-rs (pas à la main), et
+/// installé, pas lancé depuis le dépôt des sources (`./vigie-rs`, que recompile ce script).
 pub fn can_install(prefix: &Path) -> bool {
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().ok();
+    !CHANNEL.is_empty() && repo.as_deref() != Some(prefix)
+}
+
+fn writable(prefix: &Path) -> bool {
     let probe = prefix.join("bin/.vigie-rs-ecriture");
     let ok = fs::write(&probe, b"").is_ok();
     let _ = fs::remove_file(&probe);
-    ok && CHANNEL == "release"
+    ok
 }
 
 fn download(url: &str, dest: &Path) -> Result<(), String> {
@@ -139,7 +120,8 @@ pub fn verify(file: &Path, checksum_file: &Path) -> Result<(), String> {
     }
 }
 
-/// Télécharge, vérifie et installe une release dans le préfixe en cours.
+/// Télécharge, vérifie et installe une release dans le préfixe en cours ; s'il n'est pas modifiable
+/// (/usr), par ce même binaire relancé en administrateur (`admin_install`).
 pub fn install(release: &Release) -> Result<(), String> {
     let prefix = prefix().ok_or("emplacement de Vigie introuvable")?;
     let work = dirs::cache_dir().ok_or("dossier de cache introuvable")?.join("vigie-rs/mise-a-jour");
@@ -149,9 +131,48 @@ pub fn install(release: &Release) -> Result<(), String> {
     download(&release.archive, &archive)?;
     download(&release.checksum, &checksum)?;
     verify(&archive, &checksum)?;
-    install_archive(&archive, &prefix, &work.join("extrait"))?;
+    let result = if writable(&prefix) {
+        install_archive(&archive, &prefix, &staging(&archive))
+    } else {
+        let exe = exe().ok_or("emplacement de Vigie introuvable")?;
+        let out = std::process::Command::new("pkexec")
+            .arg(exe)
+            .arg(ADMIN_INSTALL)
+            .args([&archive, &prefix])
+            .output()
+            .map_err(|e| format!("pkexec : {e}"))?;
+        match out.status.code() {
+            Some(0) => Ok(()),
+            // pkexec : fenêtre fermée ou mot de passe refusé.
+            Some(126 | 127) => Err("mot de passe d'administrateur non donné".to_owned()),
+            _ => Err(String::from_utf8_lossy(&out.stderr).trim().to_owned()),
+        }
+    };
     let _ = fs::remove_dir_all(&work);
-    Ok(())
+    result
+}
+
+const ADMIN_INSTALL: &str = "--install-archive";
+
+fn staging(archive: &Path) -> PathBuf {
+    archive.with_file_name("extrait")
+}
+
+/// `vigie-rs --install-archive <archive vérifiée> <préfixe>`, lancé par `install` en administrateur :
+/// installe et donne le code de sortie, avant toute fenêtre ; `None` pour un lancement normal.
+pub fn admin_install() -> Option<i32> {
+    let args: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
+    let [flag, archive, prefix] = &args[..] else { return None };
+    if flag.as_os_str() != ADMIN_INSTALL {
+        return None;
+    }
+    Some(match install_archive(archive, prefix, &staging(archive)) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("{e}");
+            1
+        }
+    })
 }
 
 /// Extrait l'archive (`vigie-rs/bin`, `vigie-rs/share`…) et remplace les fichiers du préfixe : le
@@ -168,7 +189,8 @@ pub fn install_archive(archive: &Path, prefix: &Path, staging: &Path) -> Result<
         return Err("archive sans bin/vigie-rs".into());
     }
     // Données d'abord : le nouveau binaire ne démarre qu'au redémarrage.
-    for dir in ["share/vigie-rs/recipes", "share/vigie-rs/dictionaries"] {
+    // qtwebengine : le Qt WebEngine de Vigie (H.265, partage d'écran sous Wayland), si l'archive l'a.
+    for dir in ["share/vigie-rs/recipes", "share/vigie-rs/dictionaries", "share/vigie-rs/qtwebengine"] {
         let (from, to) = (root.join(dir), prefix.join(dir));
         if !from.is_dir() {
             continue;
@@ -205,8 +227,12 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     for entry in fs::read_dir(from)? {
         let entry = entry?;
         let target = to.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
+        let kind = entry.file_type()?;
+        if kind.is_dir() {
             copy_dir(&entry.path(), &target)?;
+        } else if kind.is_symlink() {
+            // Gardé tel quel (libQt6WebEngineCore.so.6 → .so.6.10.2) : copié, il doublerait la bibliothèque.
+            std::os::unix::fs::symlink(fs::read_link(entry.path())?, target)?;
         } else {
             fs::copy(entry.path(), target)?;
         }
@@ -222,66 +248,6 @@ fn set_executable(path: &Path) -> std::io::Result<()> {
 
 #[cfg(not(unix))]
 fn set_executable(_: &Path) -> std::io::Result<()> {
-    Ok(())
-}
-
-/// Compilé par ./vigie-rs : son script, dans le dépôt des sources (encore présent) d'où il vient.
-pub fn source_script() -> Option<PathBuf> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let script = dir.join("vigie-rs");
-    (CHANNEL == "source" && script.is_file() && dir.join(".git").exists()).then_some(script)
-}
-
-/// Journal de la dernière mise à jour depuis les sources, que suit la fenêtre de mise à jour.
-pub fn source_log() -> PathBuf {
-    dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("vigie-rs/update.log")
-}
-
-/// Fin du journal (64 Kio, à partir d'une ligne entière) : relu chaque seconde par la fenêtre, alors
-/// qu'une recompilation de Qt WebEngine y écrit des dizaines de Mo.
-pub fn source_log_tail() -> String {
-    use std::io::{Seek, SeekFrom};
-    const TAIL: u64 = 64 * 1024;
-    let Ok(mut file) = fs::File::open(source_log()) else { return String::new() };
-    let start = file.metadata().map(|m| m.len().saturating_sub(TAIL)).unwrap_or(0);
-    let mut bytes = Vec::new();
-    if file.seek(SeekFrom::Start(start)).and_then(|_| file.read_to_end(&mut bytes)).is_err() {
-        return String::new();
-    }
-    let text = String::from_utf8_lossy(&bytes);
-    match (start, text.find('\n')) {
-        (0, _) | (_, None) => text.into_owned(),
-        (_, Some(i)) => text[i + 1..].to_owned(),
-    }
-}
-
-/// `./vigie-rs update` en tâche de fond, sans terminal : sa sortie va dans `source_log()`, terminée
-/// par `==> code N`. Le mot de passe d'administrateur, s'il faut installer dans un dossier système,
-/// est demandé par la fenêtre du système (pkexec, le script n'ayant pas de terminal). Dans son propre
-/// groupe de processus : fermer Vigie n'arrête pas une compilation en cours. Pour l'installation d'où
-/// Vigie a été lancé (PREFIX), sauf s'il tourne depuis le dépôt lui-même.
-pub fn update_from_source() -> Result<(), String> {
-    let script = source_script().ok_or("dépôt des sources introuvable")?;
-    let repo = script.parent().unwrap_or(Path::new("."));
-    let prefix = prefix().filter(|p| p.join("bin/vigie-rs").is_file() && p.canonicalize().ok() != repo.canonicalize().ok());
-    let log = source_log();
-    fs::create_dir_all(log.parent().unwrap_or(Path::new("."))).map_err(|e| e.to_string())?;
-    let out = fs::File::create(&log).map_err(|e| e.to_string())?;
-    let err = out.try_clone().map_err(|e| e.to_string())?;
-    let mut command = std::process::Command::new("sh");
-    command
-        .args(["-c", "\"$0\" update; echo \"==> code $?\"", &script.to_string_lossy()])
-        .stdin(std::process::Stdio::null())
-        .stdout(out)
-        .stderr(err);
-    #[cfg(unix)]
-    std::os::unix::process::CommandExt::process_group(&mut command, 0);
-    if let Some(prefix) = prefix {
-        command.env("PREFIX", prefix);
-    }
-    let mut child = command.spawn().map_err(|e| e.to_string())?;
-    // Attendu ici, pour ne pas laisser de processus zombie.
-    std::thread::spawn(move || child.wait());
     Ok(())
 }
 
@@ -327,11 +293,16 @@ mod tests {
         fs::create_dir_all(src.join("share/vigie-rs/recipes/neuve")).unwrap();
         fs::write(src.join("bin/vigie-rs"), b"nouveau binaire").unwrap();
         fs::write(src.join("share/vigie-rs/recipes/neuve/package.json"), b"{}").unwrap();
+        let lib = src.join("share/vigie-rs/qtwebengine/lib");
+        fs::create_dir_all(&lib).unwrap();
+        fs::write(lib.join("libQt6WebEngineCore.so.6.10.2"), b"lib").unwrap();
+        std::os::unix::fs::symlink("libQt6WebEngineCore.so.6.10.2", lib.join("libQt6WebEngineCore.so.6")).unwrap();
         let archive = base.join(archive_name("9.9.9"));
         let mut tar = tar::Builder::new(flate2::write::GzEncoder::new(
             fs::File::create(&archive).unwrap(),
             flate2::Compression::default(),
         ));
+        tar.follow_symlinks(false); // comme tar czf
         tar.append_dir_all("vigie-rs", &src).unwrap();
         tar.into_inner().unwrap().finish().unwrap();
         let sum = format!("{:x}  {}\n", Sha256::digest(fs::read(&archive).unwrap()), archive_name("9.9.9"));
@@ -349,6 +320,9 @@ mod tests {
         assert_eq!(fs::read(prefix.join("bin/vigie-rs")).unwrap(), b"nouveau binaire");
         assert!(prefix.join("share/vigie-rs/recipes/neuve/package.json").is_file());
         assert!(!prefix.join("share/vigie-rs/recipes/ancienne").exists(), "anciennes recipes retirées");
+        let link = prefix.join("share/vigie-rs/qtwebengine/lib/libQt6WebEngineCore.so.6");
+        assert!(link.symlink_metadata().unwrap().file_type().is_symlink(), "lien gardé, pas copié");
+        assert_eq!(fs::read(link).unwrap(), b"lib");
         fs::remove_dir_all(&base).unwrap();
     }
 }

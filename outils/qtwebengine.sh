@@ -1,5 +1,6 @@
 #!/bin/sh
-# Qt WebEngine de Vigie, avec VA-API (vidéo décodée par la carte graphique, dont le H.265 des caméras).
+# Qt WebEngine de Vigie, avec VA-API (vidéo décodée par la carte graphique, dont le H.265 des caméras)
+# et PipeWire (partage d'écran sous Wayland).
 # Ubuntu compile Qt WebEngine avec la libvpx du système, et Qt désactive alors VA-API : on recompile
 # le paquet d'Ubuntu à l'identique (même version, mêmes correctifs), sauf la libvpx, intégrée.
 # Dans le conteneur (image vigie-rs-dev : même Ubuntu, même Qt que l'hôte), appelé par ./vigie-rs ;
@@ -18,7 +19,8 @@ jobs=${JOBS:-$(awk '/MemAvailable/ { j = int($2 / 3145728); print j < 1 ? 1 : j 
 sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
 apt-get update -qq
 apt-get build-dep -y -qq qt6-webengine >/dev/null
-apt-get install -y -qq --no-install-recommends libva-dev libgbm-dev patchelf >/dev/null
+apt-get install -y -qq --no-install-recommends libva-dev libgbm-dev patchelf \
+  libpipewire-0.3-dev libepoxy-dev libdrm-dev >/dev/null # PipeWire : third_party/webrtc/modules/portal
 mkdir -p $work
 cd $work
 [ -d qt6-webengine-*/ ] || apt-get source -qq qt6-webengine
@@ -31,6 +33,14 @@ version=$(dpkg-parsechangelog -S Version)
 grep -q 'webengine_vaapi=ON' debian/rules || sed -i -e 's/ *-DFEATURE_webengine_system_libvpx=ON//' \
   -e 's/-DFEATURE_webengine_kerberos=ON/& -DFEATURE_webengine_system_libvpx=OFF -DFEATURE_webengine_vaapi=ON/' debian/rules
 grep -q 'webengine_vaapi=ON' debian/rules || { echo "debian/rules : options non ajoutées"; exit 1; }
+# Et PipeWire : sous Wayland, Chromium ne partage l'écran que par lui (le bureau demande alors quel
+# écran ou quelle fenêtre). Ajouté après une compilation sans lui : Debian, qui la croit finie,
+# reconfigure (sans le marqueur de fin) et ninja ne refait que ce qui change.
+grep -q 'webengine_webrtc_pipewire=ON' debian/rules \
+  || sed -i 's/-DFEATURE_webengine_vaapi=ON/& -DFEATURE_webengine_webrtc_pipewire=ON/' debian/rules
+grep -q 'webengine_webrtc_pipewire=ON' debian/rules || { echo "debian/rules : PipeWire non ajouté"; exit 1; }
+grep -qs 'FEATURE_webengine_webrtc_pipewire:BOOL=OFF' obj-x86_64-linux-gnu/CMakeCache.txt \
+  && rm -f debian/debhelper-build-stamp
 # Seconde différence : Vigie ne bloque jamais la mise en veille. Sinon, Chromium la bloque tant
 # qu'un son joue ou qu'une vidéo est visible (le direct d'une caméra, par exemple).
 blocker=src/3rdparty/chromium/services/device/wake_lock/power_save_blocker/power_save_blocker_linux.cc
@@ -52,6 +62,8 @@ export NINJAFLAGS=-j$jobs
   && sed -i -E "s#(/ninja )(-j[0-9]+ )?(-v )?-C #\1-j$jobs \3-C #" obj-x86_64-linux-gnu/build.ninja
 NINJAJOBS=-j$jobs DEB_BUILD_OPTIONS="nocheck nodoc noautodbgsym parallel=$jobs" \
   dpkg-buildpackage -b -uc -us $clean
+grep -q 'FEATURE_webengine_webrtc_pipewire:BOOL=ON' obj-x86_64-linux-gnu/CMakeCache.txt \
+  || { echo "PipeWire non activé à la configuration"; exit 1; }
 
 # Fichiers d'exécution des paquets produits, rangés pour Vigie.
 stage=$work/stage
@@ -75,9 +87,9 @@ patchelf --set-rpath '$ORIGIN/../lib' $out/libexec/QtWebEngineProcess
 for f in $(find $out/lib $out/qml -name '*.so*' -type f); do
   patchelf --set-rpath "\$ORIGIN/$(realpath --relative-to="$(dirname "$f")" $out/lib)" "$f"
 done
-echo "$version, VA-API" >$out/version
+echo "$version, VA-API, PipeWire" >$out/version
 
 rm -rf "$repo/qtwebengine"
 cp -a $out "$repo/qtwebengine"
 chown -R $owner "$repo/qtwebengine"
-echo "Qt WebEngine $version (VA-API) dans qtwebengine/"
+echo "Qt WebEngine $version (VA-API, PipeWire) dans qtwebengine/"

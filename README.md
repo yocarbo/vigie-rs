@@ -24,14 +24,14 @@ WhatsApp, Gmail, Google Calendar, Meet, Slack, Telegram, Discord… and 440 othe
 - **Unread counts**: a red badge on each service's icon, the total in the window title and the tray icon.
 - **Notifications** on the desktop, with the service's name and logo. A click opens the conversation. Mute them per service, or all at once with Do not disturb.
 - **Calls**: audio and video (WhatsApp, Meet, Slack huddles…), in their own Vigie window when the service opens one. Vigie asks before a service uses the microphone or the camera, in a small window over the one asking, and remembers your answer for that service, from one launch to the next (change it in the service's editor). Sharing your screen is asked each time.
-- **Video decoded by the graphics card**, H.265 included, when Vigie is built from the sources: security cameras (UniFi Protect with Enhanced Encoding) play as in a browser.
+- **Video decoded by the graphics card**, H.265 included: security cameras (UniFi Protect with Enhanced Encoding) play as in a browser.
 - **Security keys** (USB): a window asks you to plug the key in and touch it, then for its PIN if needed.
 - **Google Calendar reminders** shown in Vigie, with "In 5 min" to be reminded again.
 - **Separate sign-ins**: each service has its own, or several share one (Gmail, Calendar and Meet with a single Google sign-in).
 - **Dark mode** for the services that have one.
 - **Lock** with a password, at startup, on demand, or after some time away.
 - **Hibernation and freezing**: services you rarely look at can be unloaded to save memory, and a dashboard or security cameras can be frozen in the background to save the processor, picking up at once when shown.
-- **Never in the way**: pages that lost the network (on waking up, Wi-Fi connecting) reload by themselves once it's back, and, built from the sources, Vigie never prevents your computer from sleeping.
+- **Never in the way**: pages that lost the network (on waking up, Wi-Fi connecting) reload by themselves once it's back, and Vigie never prevents your computer from sleeping.
 - **Updates** found and installed by Vigie itself.
 
 The interface is in French or English (Settings → General).
@@ -54,7 +54,7 @@ Download `vigie-rs-X.Y.Z-linux-x86_64.tar.gz` from the [releases](https://github
 tar xzf vigie-rs-X.Y.Z-linux-x86_64.tar.gz --strip-components=1 -C ~/.local   # then run ~/.local/bin/vigie-rs
 ```
 
-Installed this way, Vigie updates itself. Release archives use the system's Qt WebEngine: H.265 videos don't play (see below).
+Installed this way, Vigie updates itself. The archive brings Vigie's own Qt WebEngine, the web engine of Ubuntu rebuilt for H.265 videos and screen sharing on Wayland (see below).
 
 ### From the sources
 
@@ -66,7 +66,7 @@ docker build -t vigie-rs-dev .   # once: the build environment
 ./vigie-rs install               # builds Vigie and installs it in /usr (asks for your password)
 ```
 
-Vigie is then in the applications menu. Built this way, it brings its own Qt WebEngine, with video decoding by the graphics card (H.265 included): the first build of it takes several hours, held back so that the computer stays usable, and is redone when Ubuntu updates its own. `./vigie-rs uninstall` removes Vigie; your settings and sign-ins stay.
+Vigie is then in the applications menu, and updates itself from the published releases. Built this way too, it brings Vigie's own Qt WebEngine, downloaded from GitHub. If none is published yet for your Ubuntu's version, it is built on your computer: several hours, held back so that the computer stays usable. `./vigie-rs uninstall` removes Vigie; your settings and sign-ins stay.
 
 ## Getting started
 
@@ -104,7 +104,7 @@ Click its icon in Settings → Services, or right-click it → Edit. Its options
 
 Once a week, Vigie checks whether a new version is out, and installs it by itself; **Restart** then starts the new one, when it suits you. You can also check by hand in Settings → Version: it tells you which version is available, and after **Install** Vigie restarts on it by itself. The automatic updates can be turned off there too.
 
-Built from the sources, Vigie fetches the new version, builds it and installs it in a window that shows each step. You can keep using Vigie meanwhile, or close the window: the update carries on. If Vigie is installed in a system folder, the system asks for your password once.
+Installed from the sources too, Vigie installs the published release. If it is installed in a system folder (`./vigie-rs install` puts it in `/usr`), the system asks for your password. Run from the sources' folder (`./vigie-rs`), it only reports new versions.
 
 ## Tips
 
@@ -112,7 +112,7 @@ Built from the sources, Vigie fetches the new version, builds it and installs it
 - **Gmail, Calendar and Meet** with one Google sign-in: give them the same session name.
 - **Theme**: after changing Vigie's theme, restart it for the pages to follow. Slack has its own dark theme (Preferences → Themes in Slack).
 - **No tray icon on GNOME**: install the AppIndicator extension. Notifications work without it.
-- **Screen sharing on Wayland** (Ubuntu's GNOME, KDE…): not available yet, Qt WebEngine shares the screen there only when built with PipeWire. It works in an X11 session.
+- **Screen sharing on Wayland** (Ubuntu's GNOME, KDE…): your desktop asks which screen or window, after Vigie's question.
 - **Security keys**: USB keys only; passkeys on a phone or in a password manager don't work in Vigie: cancel, and the site offers another way to sign in.
 - **Where your data is**: settings in `~/.config/vigie-rs/settings.json`, sign-ins in `~/.local/share/vigie-rs/`. Disk encryption protects them while the computer is off.
 - **What Vigie asks the Internet**, besides your services: GitHub once a week for updates, and Google's public list of Chrome versions once a week, so that sites see an up-to-date browser. Both can be turned off.
