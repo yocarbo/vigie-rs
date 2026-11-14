@@ -2,6 +2,7 @@
 // fenêtre principale, une fenêtre d'appel, un service détaché). Dans la fenêtre principale, elle
 // restait cachée derrière une fenêtre d'appel (Slack), et la demande en attente : pas de micro.
 // Entrée autorise, Échap ou fermer la fenêtre refuse. Le micro et la caméra ont chacun leur réponse.
+// Aussi pour le partage d'écran : une seule demande, réponse non retenue.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -20,8 +21,12 @@ ApplicationWindow {
     function add(p) {
         others = others.concat(p) // nouvelle liste : le titre et les cases se mettent à jour
     }
+    readonly property bool screen: permission.permissionType === WebEnginePermission.PermissionType.DesktopVideoCapture
+        || permission.permissionType === WebEnginePermission.PermissionType.DesktopAudioVideoCapture
     // Ce qui est demandé (cette demande et celles arrivées depuis) : micro, caméra, ou les deux.
     readonly property var asked: {
+        if (screen)
+            return []
         const kinds = new Set()
         for (const p of [permission, ...others])
             app.mediaKinds(p).forEach(k => kinds.add(k))
@@ -36,6 +41,10 @@ ApplicationWindow {
     // cette fois-ci seulement.
     function answer(allow) {
         answered = true
+        if (screen) {
+            allow ? permission.grant() : permission.deny()
+            return close()
+        }
         const ok = {
             microphone: allow && (!both || micBox.checked),
             camera: allow && (!both || camBox.checked),
@@ -59,7 +68,7 @@ ApplicationWindow {
         destroy()
     }
 
-    title: app.t("%1 veut utiliser %2").arg(svc.name).arg(what)
+    title: screen ? app.t("%1 veut partager ton écran").arg(svc.name) : app.t("%1 veut utiliser %2").arg(svc.name).arg(what)
     flags: Qt.Dialog
     modality: Qt.WindowModal
     width: 440
@@ -103,7 +112,8 @@ ApplicationWindow {
             }
         }
         Label {
-            text: win.app.t("Vigie retient ta réponse pour ce service, le micro et la caméra chacun la sienne ; tu peux la changer en modifiant le service.")
+            text: win.screen ? win.app.t("Pour cette fois seulement : Vigie redemandera au prochain partage.")
+                : win.app.t("Vigie retient ta réponse pour ce service, le micro et la caméra chacun la sienne ; tu peux la changer en modifiant le service.")
             opacity: 0.7
             wrapMode: Text.Wrap
             Layout.fillWidth: true

@@ -106,6 +106,8 @@ const EN: &[(&str, &str)] = &[
     ("Caméra", "Camera"),
     ("Demander", "Ask"),
     ("Micro et caméra", "Microphone and camera"),
+    ("%1 veut partager ton écran", "%1 wants to share your screen"),
+    ("Pour cette fois seulement : Vigie redemandera au prochain partage.", "This time only: Vigie will ask again next time."),
     ("Ressources", "Resources"),
     ("Demander : Vigie pose la question la prochaine fois que le service veut s'en servir, et retient ta réponse.", "Ask: Vigie asks the next time the service wants to use it, and remembers your answer."),
     ("Libère le processeur : le service est figé dès que tu en affiches un autre (plus de calcul ni de vidéo), et repart aussitôt, au même endroit, quand tu y reviens. Entre-temps, plus de messages ni de notifications : pour des caméras ou un tableau de bord, pas pour une messagerie.", "Frees the processor: the service is frozen as soon as you show another one (no computing or video), and picks up at once, where it was, when you come back. Meanwhile, no messages or notifications: for cameras or a dashboard, not for messaging."),

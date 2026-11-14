@@ -779,7 +779,7 @@ ApplicationWindow {
         case T.MediaVideoCapture:
         case T.MediaAudioVideoCapture: {
             const answers = mediaKinds(permission).map(k => mediaAnswer(svc, k))
-            const asking = mediaWindows.find(w => w.svc.id === svc.id)
+            const asking = mediaWindows.find(w => w.svc.id === svc.id && !w.screen)
             if (answers.includes("deny"))
                 permission.deny()
             else if (answers.every(a => a === "allow"))
@@ -791,6 +791,13 @@ ApplicationWindow {
                     app: root, svc: svc, permission: permission, transientParent: window || root }))
             break
         }
+        // Partage d'écran : demandé à chaque fois, jamais retenu (comme Chrome). Sous Wayland, le
+        // système demande ensuite quel écran ou quelle fenêtre ; sous X11, c'est l'écran principal.
+        case T.DesktopVideoCapture:
+        case T.DesktopAudioVideoCapture:
+            mediaWindows = mediaWindows.concat(permissionWindow.createObject(root, {
+                app: root, svc: svc, permission: permission, transientParent: window || root }))
+            break
         default:
             permission.deny()
         }

@@ -21,6 +21,8 @@ ApplicationWindow {
         anchors.fill: parent
         profile: win.profile
         audioMuted: win.app.muted || !!win.service.mute_sound
+        settings.javascriptCanAccessClipboard: true // écrire seulement, comme dans ServiceView
+        settings.screenCaptureEnabled: true
         onWindowCloseRequested: win.close()
         onPermissionRequested: permission => win.app.askPermission(win.service, permission, win)
         onNewWindowRequested: request => win.app.newWindow(win.service, win.profile, request)

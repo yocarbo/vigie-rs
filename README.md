@@ -23,7 +23,7 @@ WhatsApp, Gmail, Google Calendar, Meet, Slack, Telegram, Discord… and 440 othe
 - **No account, no limit**: everything stays on your computer (settings, sign-ins, cache). Vigie needs no account and no server of its own, unlike Franz or Rambox, and you can add as many services as you like.
 - **Unread counts**: a red badge on each service's icon, the total in the window title and the tray icon.
 - **Notifications** on the desktop, with the service's name and logo. A click opens the conversation. Mute them per service, or all at once with Do not disturb.
-- **Calls**: audio and video (WhatsApp, Meet, Slack huddles…), in their own Vigie window when the service opens one. Vigie asks before a service uses the microphone or the camera, in a small window over the one asking, and remembers your answer for that service, from one launch to the next (change it in the service's editor).
+- **Calls**: audio and video (WhatsApp, Meet, Slack huddles…), in their own Vigie window when the service opens one. Vigie asks before a service uses the microphone or the camera, in a small window over the one asking, and remembers your answer for that service, from one launch to the next (change it in the service's editor). Sharing your screen is asked each time.
 - **Video decoded by the graphics card**, H.265 included, when Vigie is built from the sources: security cameras (UniFi Protect with Enhanced Encoding) play as in a browser.
 - **Security keys** (USB): a window asks you to plug the key in and touch it, then for its PIN if needed.
 - **Google Calendar reminders** shown in Vigie, with "In 5 min" to be reminded again.
@@ -112,6 +112,7 @@ Built from the sources, Vigie fetches the new version, builds it and installs it
 - **Gmail, Calendar and Meet** with one Google sign-in: give them the same session name.
 - **Theme**: after changing Vigie's theme, restart it for the pages to follow. Slack has its own dark theme (Preferences → Themes in Slack).
 - **No tray icon on GNOME**: install the AppIndicator extension. Notifications work without it.
+- **Screen sharing on Wayland** (Ubuntu's GNOME, KDE…): not available yet, Qt WebEngine shares the screen there only when built with PipeWire. It works in an X11 session.
 - **Security keys**: USB keys only; passkeys on a phone or in a password manager don't work in Vigie: cancel, and the site offers another way to sign in.
 - **Where your data is**: settings in `~/.config/vigie-rs/settings.json`, sign-ins in `~/.local/share/vigie-rs/`. Disk encryption protects them while the computer is off.
 - **What Vigie asks the Internet**, besides your services: GitHub once a week for updates, and Google's public list of Chrome versions once a week, so that sites see an up-to-date browser. Both can be turned off.
