@@ -76,6 +76,7 @@ node -e "const pages = {
   '/passkey-cadre': '<script>console.log(\"PASSKEY cadre demande\"); navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }).catch(e => console.log(\"PASSKEY cadre fin \" + e.name))</script>',
   '/barre': '<script>console.log(\"BARRE ok\")</script>',
   '/appel': '<button style=\"position:fixed;inset:0;width:100%;height:100%\" onclick=\"navigator.permissions.query({ name: \'microphone\' }).then(s => { console.log(\'PERM \' + s.state); s.onchange = () => { console.log(\'PERMCHANGE \' + s.state); navigator.mediaDevices.enumerateDevices().then(l => console.log(\'DEVICES \' + (l.some(d => d.kind === \'audioinput\' && d.deviceId) ? \'ok\' : \'sans-identifiant\'))) } }); window.open(\'/micro-direct\', \'appel\', \'width=600,height=400\')\">appel</button>',
+  '/partage': '<button style=\"position:fixed;inset:0;width:100%;height:100%\" onclick=\"navigator.clipboard.writeText(\'vigie-copie\').then(() => console.log(\'COPIE ok\'), e => console.log(\'COPIE \' + e.name)); navigator.clipboard.readText().then(() => console.log(\'LECTURE permise\'), e => console.log(\'LECTURE \' + e.name)); navigator.mediaDevices.getDisplayMedia({ video: true }).then(() => console.log(\'ECRAN ok\'), e => console.log(\'ECRAN \' + e.name))\">partager</button>',
   '/micro-direct': '<script>navigator.mediaDevices.getUserMedia({ audio: true }).then(() => console.log(\"MICRO ok\"), e => console.log(\"MICRO \" + e.name))</script>',
   '/pause': '<script>let n = 0; setInterval(() => console.log(\"TICK \" + ++n), 500)</script>',
   '/agenda': '<script>const go = () => { if (!String(window.alert).includes(\"vigie-reminder\")) return setTimeout(go, 200); const esc = () => document.dispatchEvent(new KeyboardEvent(\"keydown\", { key: \"Escape\" })); esc(); alert(\"Rappel 1\"); alert(\"Rappel 2\"); const m = document.getElementById(\"franz-modal\"), r = m.querySelector(\".vigie-card\").getBoundingClientRect(); console.log(\"AGENDA \" + getComputedStyle(m).position + \" \" + (r.top >= 0 && r.bottom <= innerHeight)); setTimeout(() => { m.querySelector(\".vigie-snooze\").click(); console.log(\"AGENDA reporte \" + m.querySelectorAll(\".vigie-reminder\").length); }, 1000); setTimeout(esc, 2000); }; go()</script>',
@@ -191,7 +192,7 @@ micro() { # $1 : configuration, $2 : touche (Return, Escape), ou « aucune » (p
   xdotool mousemove 600 400 click 1
   ask=
   for _ in $(seq 12); do
-    ask=$(xsearch --onlyvisible --name '(veut utiliser|wants to use)' | head -1)
+    ask=$(xsearch --onlyvisible --name '(veut utiliser|wants to use|veut partager|wants to share)' | head -1)
     [ -n "$ask" ] && break
     sleep 0.5
   done
@@ -202,7 +203,7 @@ micro() { # $1 : configuration, $2 : touche (Return, Escape), ou « aucune » (p
   fi
   sleep 2.5
   stop
-  grep -o 'MICRO [A-Za-z-]*\|PERM [a-z]*' "$log" | sort -u | tr '\n' ' ' | sed 's/ $//'
+  grep -o '\(MICRO\|ECRAN\|COPIE\|LECTURE\) [A-Za-z-]*\|PERM [a-z]*' "$log" | sort -u | tr '\n' ' ' | sed 's/ $//'
 }
 cp example/micro.json example/.micro.json
 got=$(micro example/.micro.json Return)
@@ -230,6 +231,20 @@ rm -f example/.appel.json
 grep -q 'console : PERMCHANGE granted' "$log" || fail 'micro : la page principale n’apprend pas que le micro est accordé'
 grep -q 'console : DEVICES ok' "$log" || fail 'micro : la page principale ne voit pas le micro dans sa liste de périphériques'
 echo 'ok : micro (question dans sa fenêtre, Autoriser, Refuser, réponse retenue, fenêtre d’appel)'
+
+# Presse-papiers et partage d'écran (sous xvfb, X11 : l'écran entier), après un clic : la page copie
+# un lien (permis), ne lit pas le presse-papiers (refusé), et partage l'écran si on le permet, à
+# chaque fois (la réponse n'est pas retenue : Échap, au second lancement, trouve la question).
+printf '{"services": [{"id": "partage", "name": "Partage", "url": "http://localhost:8123/partage"}]}\n' >example/.partage.json
+got=$(micro example/.partage.json Return)
+[ "$got" = 'COPIE ok ECRAN ok LECTURE NotAllowedError' ] || fail "partage : copie, lecture ou écran inattendus (${got:-pas de réponse})"
+got=$(micro example/.partage.json Escape)
+rm -f example/.partage.json
+case "$got" in
+  'COPIE ok ECRAN NotAllowedError LECTURE NotAllowedError' | 'COPIE ok ECRAN AbortError LECTURE NotAllowedError') ;;
+  *) fail "partage : Refuser n’a pas refusé l’écran, ou pas de question (${got:-pas de réponse})" ;;
+esac
+echo 'ok : presse-papiers (copie permise, lecture refusée), partage d’écran (question à chaque fois)'
 
 # Téléchargements : dans le dossier choisi ; sans dossier, dans celui du système (ici ~/Downloads,
 # le conteneur n'ayant ni dossier XDG ni ~/Téléchargements) ; sur demande, Vigie demande où

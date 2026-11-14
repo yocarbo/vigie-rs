@@ -336,6 +336,11 @@ Item {
                 audioMuted: view.app.muted || !!view.svc.mute_sound
                 settings.forceDarkMode: view.recipeForcesDark || (view.darkFor && !view.info.recipeDark)
                 settings.focusOnNavigationEnabled: false
+                // Boutons « Copier le lien » (navigator.clipboard.writeText) ; lire le presse-papiers
+                // reste refusé (askPermission).
+                settings.javascriptCanAccessClipboard: true
+                // Partage d'écran (coupé par défaut dans Qt) : Vigie pose la question (askPermission).
+                settings.screenCaptureEnabled: true
                 onIconChanged: view.app.setFavicon(view.sid, icon)
                 onPermissionRequested: permission => view.app.askPermission(view.svc, permission, web.Window.window)
                 onNewWindowRequested: request => view.app.newWindow(view.svc, web.profile, request)
