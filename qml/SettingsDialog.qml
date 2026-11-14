@@ -570,15 +570,12 @@ Dialog {
                             font.bold: true
                         }
                         Hint {
-                            text: updates.info.channel === "release"
-                                ? dlg.t("Installée depuis une version publiée.")
-                                    + (updates.info.canInstall ? ""
-                                        : " " + dlg.t("Vigie ne peut pas remplacer ses fichiers : il signale les nouvelles versions sans les installer."))
-                                : updates.info.channel === "source"
-                                ? (updates.info.canInstall
-                                    ? dlg.t("Compilée depuis les sources (commit %1). « Installer » récupère main, compile et installe la nouvelle version, dans une fenêtre qui en suit les étapes.").arg(updates.info.commit)
-                                    : dlg.t("Compilée depuis les sources (commit %1) : ./vigie-rs update installe les nouveautés de main.").arg(updates.info.commit))
-                                : dlg.t("Compilée à la main.")
+                            text: (updates.info.channel === "release" ? dlg.t("Installée depuis une version publiée.")
+                                : updates.info.channel === "source" ? dlg.t("Compilée depuis les sources (commit %1).").arg(updates.info.commit)
+                                : dlg.t("Compilée à la main."))
+                                + " " + (updates.info.canInstall
+                                    ? dlg.t("« Installer » télécharge la dernière version publiée et l'installe ; installé pour tout le système, Vigie demande le mot de passe d'administrateur.")
+                                    : dlg.t("Vigie signale les nouvelles versions sans les installer."))
                         }
                         RowLayout {
                             Button {
@@ -588,7 +585,7 @@ Dialog {
                             Button {
                                 visible: !!updates.found && updates.info.canInstall && !dlg.app.updateDone
                                 highlighted: true
-                                text: dlg.app.updateWindow ? dlg.t("Voir la progression") : dlg.t("Installer")
+                                text: dlg.t("Installer")
                                 onClicked: dlg.app.installUpdate(true)
                             }
                             Button {

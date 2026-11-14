@@ -124,7 +124,7 @@ pub mod qobject {
         fn chrome_user_agent(self: &Backend, engine: &QString, major: i32) -> QString;
 
         /// `{"version", "commit", "channel", "canInstall"}` : de quoi afficher et choisir la mise à jour ;
-        /// `canInstall` : « Installer » marche (release dans un dossier modifiable, ou dépôt des sources).
+        /// `canInstall` : « Installer » marche (Vigie installé, par une release ou ./vigie-rs install).
         #[qinvokable]
         #[cxx_name = "versionInfo"]
         fn version_info(self: &Backend) -> QString;
@@ -139,23 +139,12 @@ pub mod qobject {
         #[cxx_name = "installUpdate"]
         fn install_update(self: Pin<&mut Backend>);
 
-        /// Compilé depuis les sources : `./vigie-rs update` en tâche de fond, suivi par `updateLog` ;
-        /// message d'erreur, vide s'il est lancé.
-        #[qinvokable]
-        #[cxx_name = "updateFromSource"]
-        fn update_from_source(self: &Backend) -> QString;
-
-        /// Sortie de la mise à jour depuis les sources (étapes en lignes « ==> », fin par « ==> code N »).
-        #[qinvokable]
-        #[cxx_name = "updateLog"]
-        fn update_log(self: &Backend) -> QString;
-
         /// Relance Vigie juste après sa fermeture ; message d'erreur, vide si tout va bien.
         #[qinvokable]
         #[cxx_name = "restart"]
         fn restart(self: &Backend) -> QString;
 
-        /// `kind` : « release » (installable), « source » (./vigie-rs update), « none » ; `url` : page à
+        /// `kind` : « release » (trouvée), « none » ; `url` : page de la release à
         /// ouvrir ; `error` : échec de la vérification.
         #[qsignal]
         #[cxx_name = "updateChecked"]
@@ -466,7 +455,7 @@ impl qobject::Backend {
     }
 
     pub fn version_info(&self) -> QString {
-        let can_install = update::source_script().is_some() || update::prefix().is_some_and(|p| update::can_install(&p));
+        let can_install = update::prefix().is_some_and(|p| update::can_install(&p));
         q(json!({
             "version": update::VERSION,
             "commit": update::COMMIT.get(..7).unwrap_or(update::COMMIT),
@@ -480,22 +469,14 @@ impl qobject::Backend {
         use cxx_qt::{CxxQtType, Threading};
         let (qt, slot) = (self.qt_thread(), self.rust().release.clone());
         std::thread::spawn(move || {
-            let (kind, version, url, error) = if update::CHANNEL == "source" {
-                match update::source_update() {
-                    Ok(Some((url, version))) => ("source", version, url, String::new()),
-                    Ok(None) => ("none", String::new(), String::new(), String::new()),
-                    Err(e) => ("none", String::new(), String::new(), e),
+            let (kind, version, url, error) = match update::latest_release() {
+                Ok(Some(release)) => {
+                    let found = ("release", release.version.clone(), release.page.clone(), String::new());
+                    *slot.lock().expect("verrou") = Some(release);
+                    found
                 }
-            } else {
-                match update::latest_release() {
-                    Ok(Some(release)) => {
-                        let found = ("release", release.version.clone(), release.page.clone(), String::new());
-                        *slot.lock().expect("verrou") = Some(release);
-                        found
-                    }
-                    Ok(None) => ("none", String::new(), String::new(), String::new()),
-                    Err(e) => ("none", String::new(), String::new(), e),
-                }
+                Ok(None) => ("none", String::new(), String::new(), String::new()),
+                Err(e) => ("none", String::new(), String::new(), e),
             };
             let _ = qt.queue(move |b| b.update_checked(q(kind), q(version), q(url), q(error)));
         });
@@ -512,14 +493,6 @@ impl qobject::Backend {
             let error = result.err().unwrap_or_default();
             let _ = qt.queue(move |b| b.update_installed(q(error)));
         });
-    }
-
-    pub fn update_from_source(&self) -> QString {
-        q(update::update_from_source().err().unwrap_or_default())
-    }
-
-    pub fn update_log(&self) -> QString {
-        q(update::source_log_tail())
     }
 
     pub fn restart(&self) -> QString {

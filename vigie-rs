@@ -3,17 +3,15 @@
 #   ./vigie-rs             le lance nativement sur l'hôte ;
 #   ./vigie-rs install     l'installe : binaire dans $PREFIX/bin, recipes dans $PREFIX/share/vigie-rs,
 #                          entrée de menu et icône dans $PREFIX/share/applications et share/icons ;
-#   ./vigie-rs update      récupère la dernière version (main), la recompile, et la réinstalle
-#                          si Vigie est installé dans $PREFIX ;
 #   ./vigie-rs uninstall   le désinstalle (la configuration et les connexions restent).
 # PREFIX vaut /usr par défaut ; le mot de passe d'administrateur n'est demandé (une fois) que si le
-# préfixe n'est pas modifiable : par sudo dans un terminal, sinon par la fenêtre du système (pkexec),
-# quand Vigie lance lui-même la mise à jour. Les étapes s'affichent en lignes « ==> », que Vigie
-# reprend dans sa fenêtre de mise à jour.
+# préfixe n'est pas modifiable : par sudo dans un terminal, sinon par la fenêtre du système (pkexec).
+# Ensuite, Vigie se met à jour lui-même depuis les releases publiées sur GitHub (src/update.rs).
 # Services : ~/.config/vigie-rs/settings.json (autre fichier : VIGIE_CONFIG=chemin ./vigie-rs).
 # Prérequis hôte (Debian, Ubuntu) : Qt 6 WebEngine et ses modules QML, voir QT_PACKAGES.
-# Vigie embarque son propre Qt WebEngine (qtwebengine/, avec VA-API pour le H.265), recompilé la
-# première fois puis après chaque mise à jour de celui d'Ubuntu : plusieurs heures (outils/qtwebengine.sh).
+# Vigie embarque son propre Qt WebEngine (qtwebengine/, avec VA-API pour le H.265 et PipeWire pour
+# partager l'écran sous Wayland), refait après chaque mise à jour de celui d'Ubuntu : téléchargé depuis
+# GitHub (outils/qtwebengine-get.sh), sinon recompilé, plusieurs heures (outils/qtwebengine.sh).
 set -eu
 cd "$(dirname "$(readlink -f "$0")")"
 prefix=${PREFIX:-/usr}
@@ -54,12 +52,16 @@ build() {
 }
 
 # Qt WebEngine embarqué dans qtwebengine/ (outils/qtwebengine.sh) : celui d'Ubuntu, recompilé avec
-# VA-API pour le H.265. Refait quand Ubuntu met à jour le sien (correctifs de sécurité) : plusieurs
-# heures. En cas d'échec, Vigie prend celui du système.
+# VA-API pour le H.265 et PipeWire. Refait quand Ubuntu met à jour le sien (correctifs de sécurité) :
+# téléchargé depuis GitHub s'il y est déjà publié, sinon recompilé ici, plusieurs heures. En cas
+# d'échec, Vigie prend celui du système.
 webengine() {
   want=$(dpkg-query -W -f '${Version}' libqt6webenginecore6 2>/dev/null) || return 0
-  [ "$(cut -d, -f1 qtwebengine/version 2>/dev/null)" = "$want" ] && return 0
-  step "Recompilation de Qt WebEngine $want avec VA-API, pour Vigie (plusieurs heures)…"
+  # Version et options : une option ajoutée (PipeWire) le fait aussi refaire.
+  [ "$(cat qtwebengine/version 2>/dev/null)" = "$want, VA-API, PipeWire" ] && return 0
+  step "Téléchargement de Qt WebEngine $want (VA-API et PipeWire), pour Vigie…"
+  sh outils/qtwebengine-get.sh "$want" && return 0
+  step "Recompilation de Qt WebEngine $want avec VA-API et PipeWire, pour Vigie (plusieurs heures)…"
   # Nommé : une seconde recompilation en même temps est refusée (même dossier /build). Bridé
   # (8 Go sans swap, 1 tâche, priorité minimale) pour que la machine reste utilisable : plus
   # lent, et c'est la compilation qui est tuée si la mémoire manque, pas le bureau. Certains
@@ -106,7 +108,8 @@ case "${1:-}" in
     install_files
     ;;
   update)
-    # main, comparé par l'onglet Version : la branche en cours a pu être fusionnée puis supprimée.
+    # Lancé par les Vigie compilés depuis les sources avant la 0.4.8 : une dernière fois main, puis le
+    # nouveau Vigie se met à jour depuis les releases.
     step "Récupération des nouveautés de main…"
     git switch -q main
     git pull --ff-only

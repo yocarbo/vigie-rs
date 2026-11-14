@@ -16,21 +16,31 @@ VIGIE_CONFIG=example/services.json ./vigie-rs   # two local test services (chang
 
 ```bash
 ./vigie-rs install     # binary in /usr/bin, recipes in /usr/share/vigie-rs, menu entry and icon
-./vigie-rs update      # git pull on main, rebuild, and reinstall if Vigie is installed in $PREFIX
 ./vigie-rs uninstall   # removes them; settings and sign-ins stay
 ```
 
-`PREFIX=/usr/local ./vigie-rs install` installs under another prefix. The administrator password is asked once, only when the prefix is not writable: by `sudo` in a terminal, otherwise by the system's window (`pkexec`), when Vigie runs the update itself. The script prints its steps as `==>` lines, which Vigie's update window shows. The window's icon is built into the binary, so it shows even when Vigie is not installed.
+`PREFIX=/usr/local ./vigie-rs install` installs under another prefix. The administrator password is asked once, only when the prefix is not writable: by `sudo` in a terminal, otherwise by the system's window (`pkexec`). The window's icon is built into the binary, so it shows even when Vigie is not installed.
 
-### Updates from source
+### Updates
 
-A Vigie built by `./vigie-rs` knows its commit and its checkout: once a week, it asks GitHub whether `main` has moved on (`src/update.rs`). If so, it runs `./vigie-rs update` in the background, in its own process group (closing Vigie doesn't stop it), its output in `~/.cache/vigie-rs/update.log`, and opens the update window (`qml/UpdateWindow.qml`), which reads the end of that log every second.
+Whether the release Action or `./vigie-rs install` built it, Vigie updates itself from the latest release (`src/update.rs`): it downloads the archive, checks its SHA-256 and replaces its files. When its prefix isn't writable (`/usr`), it runs its own binary again as administrator, `pkexec <binary> --install-archive <archive> <prefix>`, which installs and exits before any window opens. Run from the checkout (`./vigie-rs`) or built by hand, it only reports new versions. To get `main` before it is released: `git pull && ./vigie-rs install`.
 
 ### Bundled Qt WebEngine
 
-Chromium decodes H.265 (HEVC) only with the graphics card (VA-API), and Ubuntu builds its Qt WebEngine without VA-API: it uses the system's libvpx, and Qt then turns VA-API off. So Vigie brings its own Qt WebEngine, in `qtwebengine/`: Ubuntu's package, same version and patches, rebuilt with the bundled libvpx (`outils/qtwebengine.sh`), without Chromium's sleep inhibition (`power_save_blocker_linux.cc`), and with a seccomp header fix for today's glibc. On OpenGL, which Qt uses, Chromium only decodes with VA-API with the `AcceleratedVideoDecodeLinuxGL` feature, which `src/main.rs` turns on unless GPU acceleration is off.
+Chromium decodes H.265 (HEVC) only with the graphics card (VA-API), and Ubuntu builds its Qt WebEngine without VA-API: it uses the system's libvpx, and Qt then turns VA-API off. So Vigie brings its own Qt WebEngine, in `qtwebengine/`: Ubuntu's package, same version and patches, rebuilt with the bundled libvpx and with PipeWire (`webengine_webrtc_pipewire`: on Wayland, Chromium shares the screen only through it, and the desktop's portal asks which screen or window) (`outils/qtwebengine.sh`), without Chromium's sleep inhibition (`power_save_blocker_linux.cc`), and with a seccomp header fix for today's glibc. On OpenGL, which Qt uses, Chromium only decodes with VA-API with the `AcceleratedVideoDecodeLinuxGL` feature, which `src/main.rs` turns on unless GPU acceleration is off.
 
-`./vigie-rs` rebuilds it the first time, then whenever Ubuntu updates its own (security fixes): several hours, held to 8 GB of memory and 1 job (the inner Chromium ninja included, through `NINJAFLAGS`) so that the machine stays usable, and about 15 GB in the `vigie-rs-qtwebengine` Docker volume. `./vigie-rs install` copies it to `share/vigie-rs/qtwebengine`. The binary looks for its libraries there first (RUNPATH, `build.rs`), and `src/main.rs` then points Qt to its web process, resources and QML module. The rest of Qt still comes from the system, at the same version. If the rebuild fails, or for release archives (built without it), Vigie uses the system's Qt WebEngine.
+Built once per Ubuntu version, it is published on GitHub, in the pre-release `qtwebengine-<version of libqt6webenginecore6>-vaapi-pipewire` (`+`, `~` and `:` turned into `_`; the options are in the name because an immutable release's tag can't be reused, even once deleted), as `qtwebengine-linux-x86_64.tar.gz` and its `.sha256`. `outils/qtwebengine-get.sh` downloads it, checks it and puts it in `qtwebengine/`: `./vigie-rs` does so first, and the release Action too, before the tests, which then run with it, and `outils/package.sh` puts it in the archive (`share/vigie-rs/qtwebengine`; updates replace it, links kept). Without one for the image's Ubuntu, the Action only warns, and its archive uses the system's Qt WebEngine.
+
+When none is published, `./vigie-rs` rebuilds it the first time, then whenever Ubuntu updates its own (security fixes) or its options change (`qtwebengine/version`: version and options; an option added after a build reconfigures the existing tree and rebuilds only what changes): several hours, held to 8 GB of memory and 1 job (the inner Chromium ninja included, through `NINJAFLAGS`) so that the machine stays usable, and about 15 GB in the `vigie-rs-qtwebengine` Docker volume. `./vigie-rs install` copies it to `share/vigie-rs/qtwebengine`. The binary looks for its libraries there first (RUNPATH, `build.rs`), and `src/main.rs` then points Qt to its web process, resources and QML module. The rest of Qt still comes from the system, at the same version. If the rebuild fails, Vigie uses the system's Qt WebEngine.
+
+To publish a rebuilt one (a new Ubuntu version, new options), from the repository:
+
+```bash
+tar czf qtwebengine-linux-x86_64.tar.gz --owner=0 --group=0 qtwebengine
+sha256sum qtwebengine-linux-x86_64.tar.gz >qtwebengine-linux-x86_64.tar.gz.sha256
+```
+
+then, on GitHub's Releases page, a new release on the new tag that `outils/qtwebengine-get.sh` expects, both files attached before publishing (release immutability: none can be added afterwards, and the tag is then lost; new options or a missed publication need a new tag in the script), and **Set as a pre-release**: never Vigie's latest version, which `src/update.rs` reads.
 
 ## Recipes
 
@@ -90,16 +100,16 @@ Environment variables: `VIGIE_CONFIG` (configuration file), `VIGIE_CONSOLE=1` (J
 - `src/i18n.rs`: English translations of the interface, written in French in the QML (`t("…")`).
 - `src/dbus.rs`: D-Bus interface, desktop notifications and NetworkManager's "connected" signal (Linux, with zbus).
 - `src/shim.js`, `src/main-world.js`: the `Vigie` object given to recipes, and `window.vigie` in the page.
-- `qml/`: the interface (window, sidebar, web views, settings, editor, security key window, update window).
+- `qml/`: the interface (window, sidebar, web views, settings, editor, security key window).
 - `cpp/app.h`, `src/qtapp.rs`: the `QApplication` (KDE's Qt integration needs widgets) and Qt WebEngine set-up, which cxx-qt-lib does not expose.
-- `src/update.rs`: updates (latest release or `main` on GitHub, download, SHA-256, install, update from source, restart).
+- `src/update.rs`: updates (latest release on GitHub, download, SHA-256, install, as administrator if needed, restart).
 - `outils/release.sh`: release build and spell-checker dictionaries, run in the container by `./vigie-rs`.
 - `outils/qtwebengine.sh`: Vigie's own Qt WebEngine, rebuilt in the container by `./vigie-rs`.
-- `outils/package.sh`, `.github/workflows/release.yml`: release archive, built and published for each `v*` tag.
+- `outils/package.sh`, `.github/workflows/release.yml`: release archive, built and published for each `v*` tag; `outils/qtwebengine.sh`, `outils/qtwebengine-get.sh`: Vigie's Qt WebEngine, rebuilt or downloaded.
 
 Technical notes:
 - Microphone and camera: Qt WebEngine 6.10 never keeps them (`QWebEnginePermission::isPersistent` is false): a grant holds for the page that got it only, unlike Chrome's per-site grant. Slack checks in its main page (`navigator.permissions`) what its call window obtained, saw "prompt", and refused the microphone. So Vigie remembers the answers itself, per service and per device (`microphone`, `camera`: `allow` or `deny`), and grants or denies later requests without asking (a request including a denied device is denied: Qt can't grant part of it). A main-world script (`mediaScript` in `qml/ServiceView.qml`) then makes the service's page see what Chrome would show: `navigator.permissions.query` says `granted` or `denied`, kept up to date with `change` events (Slack listens to them), and an allowed device the page never had is taken for an instant (stopped at once, no question since the answer is remembered) when the page is shown, so that `enumerateDevices` lists it with its id and label: without them, Slack found no microphone to use. A question opens `qml/PermissionWindow.qml`, a small window over the one asking (in the main window, it stayed hidden behind a call window); requests arriving meanwhile from the same service join it, with a box per device when both are asked.
-- Screen sharing and clipboard: Qt turns both off by default (`screenCaptureEnabled`, `javascriptCanAccessClipboard`), so `getDisplayMedia` failed with AbortError and "Copy link" buttons did nothing. Both are on in `ServiceView.qml` and `InternalWindow.qml`. A screen share asks in `PermissionWindow.qml` each time, never remembered, as Chrome does; Qt then shares the primary screen (X11). Writing to the clipboard is allowed, reading it still asks, and `askPermission` denies it: pages can't read what Vigie copies there (two-factor codes). On Wayland, Chromium captures the screen through PipeWire only, a build option (`webengine_webrtc_pipewire`) that neither Ubuntu's Qt WebEngine nor Vigie's has yet.
+- Screen sharing and clipboard: Qt turns both off by default (`screenCaptureEnabled`, `javascriptCanAccessClipboard`), so `getDisplayMedia` failed with AbortError and "Copy link" buttons did nothing. Both are on in `ServiceView.qml` and `InternalWindow.qml`. A screen share asks in `PermissionWindow.qml` each time, never remembered, as Chrome does; Qt then shares the primary screen (X11). Writing to the clipboard is allowed, reading it still asks, and `askPermission` denies it: pages can't read what Vigie copies there (two-factor codes). On Wayland, Chromium captures the screen through PipeWire only, a build option (`webengine_webrtc_pipewire`) that Ubuntu's Qt WebEngine lacks and Vigie's has (see Bundled Qt WebEngine).
 - Security keys: Qt WebEngine signals a WebAuthn request only on a state change (account, PIN, failure), and its timeout is at least 3 minutes. A user script (`qml/Main.qml`) wraps `navigator.credentials.get`/`create` in the page and its frames, reports each request so that the window opens at once, and aborts them (AbortSignal) when the window is cancelled.
 - Network: errors 21, 102, 104, 105, 106, 109, 118 and 137 (Qt's internal domain included) reload 4 times (2, 4, 8, 16 s), then once on NetworkManager's `StateChanged` = 70 (connected globally), staggered at random.
 - Google sign-in refuses QtWebEngine in disguise ("This browser or app may not be secure"), as Chrome or Firefox, but accepts the engine's own user agent. On every `*.google.com` page and on `accounts.youtube.com`, Vigie presents that one, and the up-to-date Chrome again once a page elsewhere has loaded. Otherwise, sites see an up-to-date Chrome: the "QtWebEngine" mention is removed and the Chrome version comes from [Google's public version API](https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions), at most once a week.
@@ -171,4 +181,4 @@ The Action creates the release itself. Don't create it on GitHub's Releases page
 
 ## Not done yet
 
-`ToggleToTalk`, screen sharing in calls, per-service proxy and HTTP basic auth, `user.js`, workspaces, keyboard reordering, launch at login on Windows and macOS, languages other than French and English. On the recipe side, `setDialogTitle`, `onNotify` and `setAvatarImage` do nothing, and `Vigie.ipcRenderer` does not exist. Windows and macOS builds are not set up, release archives don't carry the bundled Qt WebEngine, and releases are built for Linux x86_64 only.
+`ToggleToTalk`, per-service proxy and HTTP basic auth, `user.js`, workspaces, keyboard reordering, launch at login on Windows and macOS, languages other than French and English. On the recipe side, `setDialogTitle`, `onNotify` and `setAvatarImage` do nothing, and `Vigie.ipcRenderer` does not exist. Windows and macOS builds are not set up, and releases are built for Linux x86_64 only.
