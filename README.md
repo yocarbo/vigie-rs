@@ -31,7 +31,7 @@ WhatsApp, Gmail, Google Calendar, Meet, Slack, Telegram, Discord… and 440 othe
 - **Dark mode** for the services that have one.
 - **Lock** with a password, at startup, on demand, or after some time away.
 - **Hibernation and freezing**: services you rarely look at can be unloaded to save memory, and a dashboard or security cameras can be frozen in the background to save the processor, picking up at once when shown.
-- **Never in the way**: pages that lost the network (on waking up, Wi-Fi connecting) reload by themselves once it's back, and Vigie never prevents your computer from sleeping.
+- **Never in the way**: pages that lost the network (on waking up, Wi-Fi connecting) reload by themselves once it's back, a service whose page crashes reloads alone, Vigie restarts by itself if it crashes, and it never prevents your computer from sleeping.
 - **Updates** found and installed by Vigie itself.
 
 The interface is in French or English (Settings → General).

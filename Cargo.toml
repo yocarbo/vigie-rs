@@ -26,6 +26,8 @@ flate2 = "1"
 # Interface D-Bus io.github.vigie_rs.Vigie (compteurs, instance unique) : Linux seulement.
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
+# Relance après un plantage : signaux transmis au Vigie surveillé, arrêté avec son surveillant.
+libc = "0.2"
 
 [build-dependencies]
 cxx-qt-build = "0.10"
