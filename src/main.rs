@@ -47,14 +47,23 @@ fn chromium_settings(config: &config::Config) {
     {
         flags.push_str(&format!(" --force-webrtc-ip-handling-policy={policy}"));
     }
+    // SharedArrayBuffer sans isolement des pages (comme la règle d'entreprise de Chrome) : WhatsApp
+    // Web ne s'isole que par l'en-tête Document-Isolation-Policy, que le Chromium 134 de Qt WebEngine
+    // ignore (et, activé, il y bloque ses workers) ; sans SharedArrayBuffer, pas d'appels
+    // (« navigateur non pris en charge »). Un processus par site, comme Chrome, que Qt n'active pas :
+    // une page ne peut ainsi mesurer (Spectre) que la mémoire de son propre site.
+    flags.push_str(" --site-per-process");
+    let mut features = vec!["SharedArrayBuffer"];
     if !config.flag("gpu", true) {
         flags.push_str(" --disable-gpu --disable-gpu-compositing");
     } else {
         // Vidéo décodée par la carte graphique (VA-API, dont le H.265 des caméras) : sur OpenGL,
         // celui de Qt, Chromium ne l'autorise qu'avec cette option. Sans effet sur le Qt WebEngine
         // du système, compilé sans VA-API.
-        flags.push_str(" --enable-features=AcceleratedVideoDecodeLinuxGL");
+        features.push("AcceleratedVideoDecodeLinuxGL");
     }
+    // Une seule liste : Chromium ne garde que la dernière --enable-features.
+    flags.push_str(&format!(" --enable-features={}", features.join(",")));
     std::env::set_var("QTWEBENGINE_CHROMIUM_FLAGS", flags.trim());
     // Dictionnaires du correcteur (*.bdic), générés par ./vigie-rs à partir de ceux de hunspell.
     if std::env::var_os("QTWEBENGINE_DICTIONARIES_PATH").is_none() {
