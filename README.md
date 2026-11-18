@@ -75,7 +75,7 @@ Click **+** at the bottom of the sidebar, search the catalogue (WhatsApp, Gmail,
 - **Sidebar**: click an icon to show its service. Hold an icon and drop it onto another to reorder them.
 - **Right-click on an icon**: mute its notifications or sound, open it in its own window, reload it, enable or disable it, edit it.
 - **Right-click in a page**: spelling suggestions, copy, translate the selection, open a link in your browser, and Inspect (the developer tools).
-- **Shortcuts**: Ctrl+R or F5 reloads the current service, Ctrl+W closes the window.
+- **Shortcuts**: Ctrl+R or F5 reloads the current service, Ctrl+W closes the window you're in (Vigie's, or a window opened by a service).
 - **Tray icon**: grey at rest, red with unread messages. Its menu shows or hides the window, turns Do not disturb on or off, locks Vigie, or quits.
 
 Vigie opens again on the service you were looking at. Closing the window can keep Vigie running in the background (Settings → General).

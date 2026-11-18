@@ -138,7 +138,7 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - that the badge comes through from the recipe, the D-Bus counters and `ToggleMute`, a service excluded from the total, the window title, and that a second launch exits;
   - sessions: a cookie set by a service is seen by a service in the same session, and never by an isolated one;
   - notifications: a `Notify` call goes out for the active service, and none for the muted one;
-  - windows: a `window.open` after a click opens an app window, with `window.opener`;
+  - windows: a `window.open` after a click opens an app window, with `window.opener`, and Ctrl+W there closes it, not Vigie;
   - drag and drop: the first icon dropped onto the second takes its place, and the new order is saved;
   - closing (Ctrl+W): it asks first, Cancel keeps the app, Quit closes it, and it closes at once when the option is off;
   - microphone (Chromium's fake device): a page asks for it, Vigie's question opens in its own window (`qml/PermissionWindow.qml`), Allow (Enter) gives it, Deny (Escape) refuses it, and a call window opened by the service (a popup, as Slack's) gets its question in front, not behind;

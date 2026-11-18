@@ -15,6 +15,9 @@ ApplicationWindow {
     height: 720
     visible: true
     title: web.title || service.name
+    // Fenêtre à part entière, pas rattachée à la principale : sinon Qt tient celle-ci pour active
+    // aussi, et les deux Ctrl+W, ambigus, ne font plus rien.
+    transientParent: null
 
     WebEngineView {
         id: web
@@ -45,6 +48,11 @@ ApplicationWindow {
             request.accept()
             win.visibility = request.toggleOn ? Window.FullScreen : Window.Windowed
         }
+    }
+
+    Shortcut {
+        sequences: [StandardKey.Close]
+        onActivated: win.close()
     }
 
     onClosing: {

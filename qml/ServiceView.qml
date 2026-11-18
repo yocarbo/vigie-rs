@@ -111,9 +111,15 @@ Item {
     Component {
         id: detachedComponent
         ApplicationWindow {
+            id: detached
             width: 1100
             height: 760
             visible: true
+            transientParent: null // son propre Ctrl+W (InternalWindow.qml)
+            Shortcut {
+                sequences: [StandardKey.Close]
+                onActivated: detached.close()
+            }
         }
     }
 
@@ -551,9 +557,15 @@ Item {
     Component {
         id: inspectorComponent
         ApplicationWindow {
+            id: inspectorWindow
             width: 1100
             height: 700
             visible: true
+            transientParent: null // son propre Ctrl+W (InternalWindow.qml)
+            Shortcut {
+                sequences: [StandardKey.Close]
+                onActivated: inspectorWindow.close()
+            }
             WebEngineView {
                 id: tools
                 anchors.fill: parent
