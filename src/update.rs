@@ -49,7 +49,7 @@ fn get_json(url: &str) -> Result<serde_json::Value, String> {
 }
 
 /// Binaire en cours ; une fois remplacé par une mise à jour, Linux le suffixe de « (deleted) ».
-fn exe() -> Option<PathBuf> {
+pub fn exe() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let path = exe.to_string_lossy();
     Some(PathBuf::from(path.strip_suffix(" (deleted)").unwrap_or(&path)))

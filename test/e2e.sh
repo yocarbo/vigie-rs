@@ -26,6 +26,8 @@ start() { # $1 : configuration (relative au projet)
 stop() {
   kill $app 2>/dev/null || true
   wait $app 2>/dev/null || true
+  # Relancé par son surveillant ($app), un plantage passerait sinon inaperçu.
+  ! grep -q 'Vigie a planté' "$log" || fail 'Vigie a planté'
 }
 wait_log() { # $1 : texte attendu dans le journal
   for _ in $(seq 40); do
@@ -555,3 +557,18 @@ sleep 3
 stop
 rm -f example/.pause.json
 echo 'ok : figer en arrière-plan (gelé caché, reprend affiché)'
+
+# Relance après un plantage : le Vigie surveillé (enfant de $app) tué est relancé, et l'arrêt du
+# surveillant arrête aussi le nouveau. SIGKILL plutôt que SIGSEGV : même relance, sans core dump.
+start example/services.json
+first=$(cat /proc/$app/task/$app/children)
+[ -n "$first" ] || fail 'plantage : pas de Vigie surveillé'
+kill -KILL $first
+wait_log 'Vigie a planté (signal 9) : relancé' || fail 'plantage : Vigie non relancé'
+xsearch --sync --name Vigie >/dev/null || fail 'plantage : pas de fenêtre après la relance'
+second=$(cat /proc/$app/task/$app/children)
+[ -n "$second" ] && [ "$second" != "$first" ] || fail 'plantage : pas de nouveau Vigie'
+kill $app
+wait $app 2>/dev/null || true
+! kill -0 $second 2>/dev/null || fail 'arrêt : le Vigie relancé survit à son surveillant'
+echo 'ok : relance après un plantage, arrêt transmis au Vigie surveillé'

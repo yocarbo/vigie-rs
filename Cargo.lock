@@ -2023,6 +2023,7 @@ dependencies = [
  "cxx-qt-lib",
  "dirs",
  "flate2",
+ "libc",
  "password-hash",
  "resvg",
  "serde",

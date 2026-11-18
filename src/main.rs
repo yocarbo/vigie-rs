@@ -88,11 +88,79 @@ fn page_color_scheme(theme: config::Theme) {
     }
 }
 
+/// Vigie relancé s'il plante. Le cœur de Qt WebEngine (processus principal, moteur graphique) tourne
+/// dans celui de Vigie : un plantage y emporte tous les services, contrairement à celui de la page
+/// d'un service, rechargée seule (ServiceView.qml). Ce processus-ci ne fait que lancer le vrai Vigie,
+/// lui passer les signaux d'arrêt et le relancer s'il plante, sauf trois fois en deux minutes.
+#[cfg(target_os = "linux")]
+fn supervise() {
+    use std::os::unix::process::{CommandExt, ExitStatusExt};
+    use std::sync::atomic::{AtomicI32, Ordering};
+    use std::time::{Duration, Instant};
+    const SUPERVISED: &str = "VIGIE_SUPERVISED";
+    const STOP: [libc::c_int; 3] = [libc::SIGTERM, libc::SIGINT, libc::SIGHUP];
+    static CHILD: AtomicI32 = AtomicI32::new(0);
+    extern "C" fn forward(sig: libc::c_int) {
+        let pid = CHILD.load(Ordering::Relaxed);
+        if pid > 0 {
+            unsafe { libc::kill(pid, sig) };
+        }
+    }
+    if std::env::var_os(SUPERVISED).is_some() {
+        // Ceux qu'il lance à son tour (redémarrage après une mise à jour) ont leur surveillant.
+        std::env::remove_var(SUPERVISED);
+        return;
+    }
+    let Some(exe) = update::exe() else { return };
+    let mut crashes: Vec<Instant> = Vec::new();
+    loop {
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(std::env::args_os().skip(1)).env(SUPERVISED, "1");
+        // Arrêté avec son surveillant, même tué sans pouvoir passer de signal (SIGKILL).
+        unsafe {
+            cmd.pre_exec(|| {
+                libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM as libc::c_ulong);
+                Ok(())
+            });
+        }
+        let mut child = match cmd.spawn() {
+            Ok(child) => child,
+            Err(e) if crashes.is_empty() => return eprintln!("Vigie lancé sans surveillance : {e}"),
+            Err(e) => {
+                eprintln!("Vigie non relancé : {e}");
+                std::process::exit(1);
+            }
+        };
+        CHILD.store(child.id() as i32, Ordering::Relaxed);
+        if crashes.is_empty() {
+            for sig in STOP {
+                unsafe { libc::signal(sig, forward as *const () as libc::sighandler_t) };
+            }
+        }
+        let status = child.wait().unwrap_or_else(|_| std::process::exit(1));
+        match status.signal() {
+            None => std::process::exit(status.code().unwrap_or(1)),
+            Some(sig) if STOP.contains(&sig) => std::process::exit(128 + sig),
+            Some(sig) => {
+                crashes.retain(|t| t.elapsed() < Duration::from_secs(120));
+                crashes.push(Instant::now());
+                if crashes.len() >= 3 {
+                    eprintln!("Vigie a planté trois fois en deux minutes (signal {sig}) : pas de relance");
+                    std::process::exit(128 + sig);
+                }
+                eprintln!("Vigie a planté (signal {sig}) : relancé");
+            }
+        }
+    }
+}
+
 fn main() {
     // Mise à jour dans un dossier système : relancé en administrateur par update::install.
     if let Some(code) = update::admin_install() {
         std::process::exit(code);
     }
+    #[cfg(target_os = "linux")]
+    supervise();
     // Déjà lancé : l'instance en cours s'affiche, celle-ci s'arrête.
     #[cfg(target_os = "linux")]
     if !dbus::claim() {

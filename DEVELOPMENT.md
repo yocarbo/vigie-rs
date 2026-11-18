@@ -94,7 +94,7 @@ Environment variables: `VIGIE_CONFIG` (configuration file), `VIGIE_CONSOLE=1` (J
 
 ## Code
 
-- `src/main.rs`: single instance, Chromium settings read at startup (GPU, VA-API, WebRTC, dictionaries, bundled Qt WebEngine), window icon, loads `qml/Main.qml`.
+- `src/main.rs`: relaunch after a crash (a first process only starts the real Vigie, passes it the stop signals, and starts it again if it dies of anything else, unless it crashed three times in two minutes: Qt WebEngine's browser process and GPU run inside Vigie's own process, so a crash there takes every service with it, whereas a page that crashes is reloaded alone, `onRenderProcessTerminated`), single instance, Chromium settings read at startup (GPU, VA-API, WebRTC, dictionaries, bundled Qt WebEngine), window icon, loads `qml/Main.qml`.
 - `src/backend.rs`: the `Backend` object exposed to QML (configuration, recipes, icons, desktop, updates), exchanging JSON.
 - `src/config.rs`, `src/recipes.rs`, `src/icons.rs`: configuration file, recipe scripts, trimmed logos.
 - `src/i18n.rs`: English translations of the interface, written in French in the QML (`t("…")`).
@@ -155,7 +155,8 @@ The image is Ubuntu 26.04, with the same Qt (6.10) as the development machine. `
   - network: a page left on Chromium's error page at startup reloads by itself once its server answers;
   - navigation bar: a service with its own `nav_bar` shows it while the setting says never, and an address typed there opens;
   - Google Calendar reminders: the recipe's reminder cards (in place of `alert()`) are in view and counted in the badge; "In 5 min" takes its own away, closing clears the count, Escape elsewhere leaves it alone;
-  - freeze in the background: a service loaded hidden stops running 10 s after loading, and runs again once shown.
+  - freeze in the background: a service loaded hidden stops running 10 s after loading, and runs again once shown;
+  - crash: the supervised Vigie, killed, is relaunched, and stopping its supervisor stops the new one too; any other test fails if Vigie crashed.
 
 The tray is not checked there: Qt shows it only when the desktop provides a tray host, which the test session does not. In the test container, Chromium's sandbox is disabled (`QTWEBENGINE_DISABLE_SANDBOX`); it stays on in normal use.
 
