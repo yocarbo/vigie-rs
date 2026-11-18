@@ -47,6 +47,24 @@ blocker=src/3rdparty/chromium/services/device/wake_lock/power_save_blocker/power
 grep -q 'return false && !base::CommandLine' $blocker \
   || sed -i 's/^  return !base::CommandLine::ForCurrentProcess()->HasSwitch($/  return false \&\& !base::CommandLine::ForCurrentProcess()->HasSwitch(/' $blocker
 grep -q 'return false && !base::CommandLine' $blocker || { echo "$blocker : veille non débloquée"; exit 1; }
+# Troisième : le partage d'écran (PipeWire) sans EGL. Pour lire les images en DMA-BUF, la capture
+# de WebRTC ouvre son propre EGL ; dans Chrome, elle tourne à part du processeur graphique, mais
+# Qt WebEngine fait tout tourner dans le même processus : son EGL y perd alors le sien (« eglCreateSync
+# failed », contexte perdu), et Vigie plante. Sans lui, PipeWire passe les images en mémoire partagée.
+dmabuf=src/3rdparty/chromium/third_party/webrtc/modules/desktop_capture/linux/wayland/egl_dmabuf.cc
+if ! grep -q 'return;  // vigie' $dmabuf; then
+  sed -i 's/^EglDmaBuf::EglDmaBuf() {$/&\n  return;  \/\/ vigie: no EGL here, it breaks the in-process GPU of Qt WebEngine/' $dmabuf
+  rm -f debian/debhelper-build-stamp # déjà compilé sans : Debian refait ce qui change
+fi
+grep -q 'return;  // vigie' $dmabuf || { echo "$dmabuf : EGL de la capture non retiré"; exit 1; }
+# Quatrième : écrans et fenêtres. Qt WebEngine passe toujours par le capteur « écran », qui ne propose
+# que les écrans au portail ; Chrome en prend un autre, pour les deux.
+screen=src/3rdparty/chromium/third_party/webrtc/modules/desktop_capture/screen_capturer_linux.cc
+if ! grep -q 'kAnyScreenContent);  // vigie' $screen; then
+  sed -i 's/^\( *\)CaptureType::kScreen);$/\1CaptureType::kAnyScreenContent);  \/\/ vigie: screens and windows/' $screen
+  rm -f debian/debhelper-build-stamp
+fi
+grep -q 'kAnyScreenContent);  // vigie' $screen || { echo "$screen : fenêtres non proposées"; exit 1; }
 # Compilation avec la glibc d'aujourd'hui : la définition de secours de SYS_SECCOMP (1) casse
 # l'enum de <signal.h> quand celui-ci vient après ; inclus avant, c'est celle de glibc qui sert.
 seccomp=src/3rdparty/chromium/sandbox/linux/system_headers/linux_seccomp.h
@@ -87,9 +105,11 @@ patchelf --set-rpath '$ORIGIN/../lib' $out/libexec/QtWebEngineProcess
 for f in $(find $out/lib $out/qml -name '*.so*' -type f); do
   patchelf --set-rpath "\$ORIGIN/$(realpath --relative-to="$(dirname "$f")" $out/lib)" "$f"
 done
-echo "$version, VA-API, PipeWire" >$out/version
+# Même chaîne dans ./vigie-rs et outils/qtwebengine-get.sh ; r2 : partage d'écran sans EGL, et de
+# fenêtres.
+echo "$version, VA-API, PipeWire, r2" >$out/version
 
 rm -rf "$repo/qtwebengine"
 cp -a $out "$repo/qtwebengine"
 chown -R $owner "$repo/qtwebengine"
-echo "Qt WebEngine $version (VA-API, PipeWire) dans qtwebengine/"
+echo "Qt WebEngine $version (VA-API, PipeWire, r2) dans qtwebengine/"

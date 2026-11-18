@@ -1,13 +1,13 @@
 #!/bin/sh
 # Qt WebEngine de Vigie déjà compilé (outils/qtwebengine.sh), publié sur GitHub dans la pré-release
-# « qtwebengine-<version d'Ubuntu>-vaapi-pipewire » : téléchargé dans qtwebengine/ au lieu d'être recompilé, par
+# « qtwebengine-<version d'Ubuntu>-vaapi-pipewire-r2 » : téléchargé dans qtwebengine/ au lieu d'être recompilé, par
 # ./vigie-rs et pour les archives de release. Échoue s'il n'y en a pas pour cette version d'Ubuntu.
 #   sh outils/qtwebengine-get.sh <version du paquet libqt6webenginecore6>
 set -eu
-want="$1, VA-API, PipeWire"
-# Ni « + », ni « ~ », ni « : » dans un tag git. Les options y sont aussi : une release immuable ne
-# rend pas son tag, même supprimée, donc changer d'options (ou rater une publication) en demande un autre.
-tag=qtwebengine-$(printf %s "$1" | tr '+~:' '___')-vaapi-pipewire
+want="$1, VA-API, PipeWire, r2"
+# Ni « + », ni « ~ », ni « : » dans un tag git. Les options et la révision (rN, changée avec les
+# modifications de Chromium) y sont aussi : une release immuable ne rend pas son tag, même supprimée.
+tag=qtwebengine-$(printf %s "$1" | tr '+~:' '___')-vaapi-pipewire-r2
 url=https://github.com/yocarbo/vigie-rs/releases/download/$tag/qtwebengine-linux-x86_64.tar.gz
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
