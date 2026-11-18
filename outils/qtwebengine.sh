@@ -106,10 +106,10 @@ for f in $(find $out/lib $out/qml -name '*.so*' -type f); do
   patchelf --set-rpath "\$ORIGIN/$(realpath --relative-to="$(dirname "$f")" $out/lib)" "$f"
 done
 # Même chaîne dans ./vigie-rs et outils/qtwebengine-get.sh ; r2 : partage d'écran sans EGL, et de
-# fenêtres.
-echo "$version, VA-API, PipeWire, r2" >$out/version
+# fenêtres ; r3 : le même, r2 publiée sans ses fichiers.
+echo "$version, VA-API, PipeWire, r3" >$out/version
 
 rm -rf "$repo/qtwebengine"
 cp -a $out "$repo/qtwebengine"
 chown -R $owner "$repo/qtwebengine"
-echo "Qt WebEngine $version (VA-API, PipeWire, r2) dans qtwebengine/"
+echo "Qt WebEngine $version (VA-API, PipeWire, r3) dans qtwebengine/"

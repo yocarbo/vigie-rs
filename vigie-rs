@@ -58,7 +58,7 @@ build() {
 webengine() {
   want=$(dpkg-query -W -f '${Version}' libqt6webenginecore6 2>/dev/null) || return 0
   # Version, options et révision (outils/qtwebengine.sh) : un changement le fait aussi refaire.
-  [ "$(cat qtwebengine/version 2>/dev/null)" = "$want, VA-API, PipeWire, r2" ] && return 0
+  [ "$(cat qtwebengine/version 2>/dev/null)" = "$want, VA-API, PipeWire, r3" ] && return 0
   step "Téléchargement de Qt WebEngine $want (VA-API et PipeWire), pour Vigie…"
   sh outils/qtwebengine-get.sh "$want" && return 0
   step "Recompilation de Qt WebEngine $want avec VA-API et PipeWire, pour Vigie (plusieurs heures)…"
