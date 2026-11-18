@@ -135,6 +135,6 @@ Vigie's own code is released under the MIT licence, see `LICENSE`.
 
 The `recipes/` catalogue is distributed under the MIT licence, © Ferdium Contributors, from [ferdium-recipes](https://github.com/ferdium/ferdium-recipes). Its copyright notice, in `recipes/LICENSE.md`, and the `LICENSE` files inside individual recipes must stay with the files. Exception: `recipes/weekplan` is under Apache-2.0 (see its `LICENSE`).
 
-Vigie's Qt WebEngine (`qtwebengine/`), rebuilt from Ubuntu's `qt6-webengine` source package with two build options and two lines of Chromium changed, keeps its licences (LGPL-3 and others, Chromium's included), listed in `qtwebengine/copyright`.
+Vigie's Qt WebEngine (`qtwebengine/`), rebuilt from Ubuntu's `qt6-webengine` source package with two build options and four lines of Chromium changed, keeps its licences (LGPL-3 and others, Chromium's included), listed in `qtwebengine/copyright`.
 
 The spell-checker dictionaries, converted from the hunspell packages of Ubuntu and shipped in the release archives, keep their own licences (French: MPL-2.0; English: SCOWL and WordNet notices), copied next to them in `dictionaries/*.copyright`.
