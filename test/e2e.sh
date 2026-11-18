@@ -140,7 +140,12 @@ for _ in $(seq 20); do
 done
 # Qt ajoute « — Vigie » au titre des fenêtres secondaires.
 [ "${found%% — Vigie}" = 'Popup avec opener' ] || fail "fenêtre interne : « ${found:-aucune} »"
-echo 'ok : fenêtre interne pour window.open, window.opener conservé'
+# Ctrl+W y ferme cette fenêtre, pas Vigie (il demandait de quitter).
+xdotool windowfocus --sync "$(xsearch --name 'Popup avec opener' | head -1)" key ctrl+w
+sleep 1
+[ -z "$(xsearch --name 'Popup avec opener' 2>/dev/null || true)" ] || fail 'fenêtre interne : Ctrl+W ne la ferme pas'
+kill -0 $app 2>/dev/null || fail 'fenêtre interne : Ctrl+W a fermé Vigie'
+echo 'ok : fenêtre interne pour window.open, window.opener conservé, Ctrl+W la ferme'
 stop
 
 # Glisser-déposer : la 1re icône déposée sur la 2e prend sa place, et l'ordre est enregistré.

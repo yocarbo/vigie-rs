@@ -1014,10 +1014,10 @@ ApplicationWindow {
         context: Qt.ApplicationShortcut
         onActivated: root.reloadCurrent()
     }
-    // Ctrl+W (Cmd+W sous macOS) : comme la croix de la fenêtre.
+    // Ctrl+W (Cmd+W sous macOS) : comme la croix de la fenêtre. Dans celle-ci seulement : les autres
+    // (lien ouvert par un service, service à part, inspecteur) se ferment elles-mêmes.
     Shortcut {
         sequences: [StandardKey.Close]
-        context: Qt.ApplicationShortcut
         onActivated: root.close()
     }
 
